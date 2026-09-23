@@ -1,4 +1,5 @@
 import { registerPlugin, Capacitor } from '@capacitor/core';
+import { getThemePreference, isEffectiveDark, onThemeChange } from './theme';
 
 interface Palette {
   primary: string;
@@ -40,10 +41,13 @@ export async function setupDynamicColor() {
     const { available, light, dark } = await DynamicColor.getColors();
     if (!available || !light || !dark) return;
 
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => applyPalette(media.matches ? dark : light);
+    // La préférence forcée (Réglages) doit gagner sur le système, sinon la
+    // palette dynamique écraserait un thème forcé manuellement — voir
+    // theme.ts.
+    const apply = () => applyPalette(isEffectiveDark(getThemePreference()) ? dark : light);
     apply();
-    media.addEventListener('change', apply);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply);
+    onThemeChange(apply);
   } catch {
     // Plugin indisponible (web, ou erreur native) : on garde la palette CSS fixe.
   }

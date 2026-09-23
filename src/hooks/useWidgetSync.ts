@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLists } from './useLists';
 import { useItems } from './useItems';
 import { useRealtimeItems } from './useRealtimeItems';
+import { useWidgetListId } from './useWidgetListPref';
 import { WidgetBridge } from '../lib/widgetBridge';
 
 // Alimente le widget directement depuis l'app (ouverture, changement local,
@@ -21,7 +22,12 @@ import { WidgetBridge } from '../lib/widgetBridge';
 export function useWidgetSync() {
   const { session } = useAuth();
   const { data: lists } = useLists();
-  const firstList = lists?.[0];
+  const widgetListId = useWidgetListId();
+  // Liste choisie par l'utilisateur (Réglages) si elle existe encore,
+  // sinon repli sur la plus ancienne (comportement par défaut, voir
+  // CLAUDE.md).
+  const chosenList = widgetListId ? lists?.find((l) => l.id === widgetListId) : undefined;
+  const firstList = chosenList ?? lists?.[0];
   const listId = firstList?.id ?? '';
 
   const { data: items } = useItems(listId);
