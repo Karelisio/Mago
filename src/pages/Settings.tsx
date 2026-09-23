@@ -4,8 +4,40 @@ import { useInvites } from '../hooks/useInvites';
 import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
 import { useListCategories, useItemCategories } from '../hooks/useCategories';
+import { useWidgetListId, setWidgetListId } from '../hooks/useWidgetListPref';
+import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme';
 import { MagoIcon } from '../components/MagoIcon';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+
+const THEME_LABELS: Record<ThemePreference, string> = {
+  system: 'Système',
+  light: 'Claire',
+  dark: 'Sombre',
+};
+
+function ThemePicker() {
+  const [pref, setPref] = useState<ThemePreference>(getThemePreference);
+
+  function choose(next: ThemePreference) {
+    setThemePreference(next);
+    setPref(next);
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', gap: 8 }}>
+      {(Object.keys(THEME_LABELS) as ThemePreference[]).map((p) => (
+        <button
+          key={p}
+          className={pref === p ? 'btn-primary' : 'btn-text'}
+          style={{ flex: 1 }}
+          onClick={() => choose(p)}
+        >
+          {THEME_LABELS[p]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function CategoryManager({
   title,
@@ -76,6 +108,7 @@ export function Settings() {
   const update = useAppUpdate();
   const listCategories = useListCategories();
   const itemCategories = useItemCategories();
+  const widgetListId = useWidgetListId();
 
   const [email, setEmail] = useState('');
   const [listId, setListId] = useState('');
@@ -110,49 +143,22 @@ export function Settings() {
         </div>
       </div>
 
-      <div className="card">
-        <p>Connecté en tant que {session?.user.email}</p>
-        <button className="btn-text" onClick={signOut}>
-          Se déconnecter
-        </button>
-      </div>
+      <h3>Thème</h3>
+      <ThemePicker />
 
-      <h3>Mise à jour</h3>
+      <h3>Widget</h3>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
-          Version installée : {update.currentVersion ?? 'inconnue (build de développement)'}
+        <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)', margin: 0 }}>
+          Liste affichée sur le widget écran d'accueil.
         </p>
-        {update.checking && <p>Vérification des mises à jour…</p>}
-        {update.latest && (
-          <>
-            <p>
-              Nouvelle version disponible : <strong>{update.latest.tag}</strong>
-            </p>
-            {update.latest.changelog && (
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0 }}>{update.latest.changelog}</pre>
-            )}
-            {update.canInstall ? (
-              <button className="btn-primary" onClick={update.install} disabled={update.installing}>
-                {update.installing ? 'Téléchargement…' : 'Télécharger et installer'}
-              </button>
-            ) : (
-              <a
-                href={update.latest.apkUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-text"
-                style={{ textAlign: 'center', textDecoration: 'none' }}
-              >
-                Télécharger l'APK
-              </a>
-            )}
-          </>
-        )}
-        {!update.checking && !update.latest && !update.error && <p>Mago est à jour.</p>}
-        {update.error && <p style={{ color: 'var(--md-error)' }}>{update.error}</p>}
-        <button className="btn-text" onClick={update.checkForUpdate} disabled={update.checking}>
-          Vérifier à nouveau
-        </button>
+        <select value={widgetListId} onChange={(e) => setWidgetListId(e.target.value)}>
+          <option value="">Automatique (la plus ancienne)</option>
+          {(lists ?? []).map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <h3>Catégories de listes</h3>
@@ -259,6 +265,52 @@ export function Settings() {
           {inv.to_email} — <em>{inv.status}</em>
         </div>
       ))}
+
+      <h3>Mise à jour</h3>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
+          Version installée : {update.currentVersion ?? 'inconnue (build de développement)'}
+        </p>
+        {update.checking && <p>Vérification des mises à jour…</p>}
+        {update.latest && (
+          <>
+            <p>
+              Nouvelle version disponible : <strong>{update.latest.tag}</strong>
+            </p>
+            {update.latest.changelog && (
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0 }}>{update.latest.changelog}</pre>
+            )}
+            {update.canInstall ? (
+              <button className="btn-primary" onClick={update.install} disabled={update.installing}>
+                {update.installing ? 'Téléchargement…' : 'Télécharger et installer'}
+              </button>
+            ) : (
+              <a
+                href={update.latest.apkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-text"
+                style={{ textAlign: 'center', textDecoration: 'none' }}
+              >
+                Télécharger l'APK
+              </a>
+            )}
+          </>
+        )}
+        {!update.checking && !update.latest && !update.error && <p>Mago est à jour.</p>}
+        {update.error && <p style={{ color: 'var(--md-error)' }}>{update.error}</p>}
+        <button className="btn-text" onClick={update.checkForUpdate} disabled={update.checking}>
+          Vérifier à nouveau
+        </button>
+      </div>
+
+      <h3>Compte</h3>
+      <div className="card">
+        <p>Connecté en tant que {session?.user.email}</p>
+        <button className="btn-text" onClick={signOut}>
+          Se déconnecter
+        </button>
+      </div>
     </div>
   );
 }

@@ -17,8 +17,10 @@
   --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+/* Suit le système par défaut ; :not([data-theme="light"]) laisse un thème
+   clair forcé (voir theme.ts) l'emporter même si le système est sombre. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --md-primary: #ffb68c;
     --md-on-primary: #5c2200;
     --md-primary-container: #7d3300;
@@ -32,6 +34,22 @@
     --md-success: #81c995;
     --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
+}
+
+/* Thème sombre forcé (Réglages), quel que soit le système. */
+:root[data-theme='dark'] {
+  --md-primary: #ffb68c;
+  --md-on-primary: #5c2200;
+  --md-primary-container: #7d3300;
+  --md-on-primary-container: #ffdbc7;
+  --md-surface: #201a17;
+  --md-on-surface: #ede0d9;
+  --md-surface-variant: #53433a;
+  --md-on-surface-variant: #d8c2b8;
+  --md-outline: #a08d83;
+  --md-error: #f2b8b5;
+  --md-success: #81c995;
+  --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 * {

@@ -8,8 +8,10 @@ import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { setupEdgeToEdge } from './lib/statusBar';
 import { setupDynamicColor } from './lib/dynamicColor';
+import { initTheme } from './lib/theme';
 import './styles/theme.css';
 
+initTheme();
 void setupEdgeToEdge();
 void setupDynamicColor();
 
