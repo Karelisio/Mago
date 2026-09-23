@@ -146,6 +146,9 @@ copyFileSync(join(widgetTemplatesDir, 'widget_colors_night.xml'), join(resDir, '
 mkdirSync(join(resDir, 'values-v31'), { recursive: true });
 copyFileSync(join(widgetTemplatesDir, 'widget_colors_v31.xml'), join(resDir, 'values-v31', 'widget_colors.xml'));
 
+mkdirSync(join(resDir, 'values-night-v31'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_colors_night_v31.xml'), join(resDir, 'values-night-v31', 'widget_colors.xml'));
+
 console.log('Ressources du widget (xml/layout/drawable/couleurs) copiées dans res/');
 
 // Icône de l'app (liste à cocher + deux anneaux entrelacés pour le couple,
