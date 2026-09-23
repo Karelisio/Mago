@@ -8,6 +8,8 @@ export interface SyncErrorEntry {
   table: string;
   rowId: string;
   message: string;
+  rowOwnerId?: string;
+  sessionUserId?: string;
 }
 
 export async function readSyncErrors(): Promise<SyncErrorEntry[]> {
@@ -20,9 +22,18 @@ export async function readSyncErrors(): Promise<SyncErrorEntry[]> {
   }
 }
 
-export async function logSyncError(table: string, rowId: string, message: string): Promise<void> {
+export async function logSyncError(
+  table: string,
+  rowId: string,
+  message: string,
+  rowOwnerId?: string,
+  sessionUserId?: string,
+): Promise<void> {
   const current = await readSyncErrors();
-  const next = [{ at: new Date().toISOString(), table, rowId, message }, ...current].slice(0, MAX_ENTRIES);
+  const next = [
+    { at: new Date().toISOString(), table, rowId, message, rowOwnerId, sessionUserId },
+    ...current,
+  ].slice(0, MAX_ENTRIES);
   await Preferences.set({ key: LOG_KEY, value: JSON.stringify(next) });
 }
 
