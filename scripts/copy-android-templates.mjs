@@ -41,14 +41,38 @@ if (!appGradle.includes("apply plugin: 'kotlin-android'")) {
   console.log('Plugin kotlin-android + stdlib ajoutés à android/app/build.gradle');
 }
 
-mkdirSync(packageDir, { recursive: true });
-copyFileSync(join(templatesDir, 'DynamicColorPlugin.kt'), join(packageDir, 'DynamicColorPlugin.kt'));
-copyFileSync(join(templatesDir, 'ApkInstallerPlugin.kt'), join(packageDir, 'ApkInstallerPlugin.kt'));
-console.log('DynamicColorPlugin.kt + ApkInstallerPlugin.kt copiés dans', packageDir);
+// Firebase Cloud Messaging (widget écran d'accueil, Phase 2+). Le template
+// Capacitor applique déjà conditionnellement le plugin google-services (si
+// android/app/google-services.json existe au moment du build — voir le bas
+// de app/build.gradle) : rien à faire de ce côté, seulement ajouter les
+// dépendances Firebase Messaging elles-mêmes.
+appGradle = readFileSync(appGradlePath, 'utf8');
+if (!appGradle.includes('com.google.firebase:firebase-messaging')) {
+  appGradle = appGradle.replace(
+    `implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
+    [
+      `implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
+      `    implementation platform('com.google.firebase:firebase-bom:33.5.1')`,
+      `    implementation 'com.google.firebase:firebase-messaging'`,
+    ].join('\n'),
+  );
+  writeFileSync(appGradlePath, appGradle);
+  console.log('Dépendances Firebase Messaging ajoutées à android/app/build.gradle');
+}
 
+mkdirSync(packageDir, { recursive: true });
+const pluginFiles = ['DynamicColorPlugin.kt', 'ApkInstallerPlugin.kt', 'PushTokenPlugin.kt'];
+for (const file of pluginFiles) {
+  copyFileSync(join(templatesDir, file), join(packageDir, file));
+}
+console.log(pluginFiles.join(' + '), 'copiés dans', packageDir);
+
+// Enregistre chaque plugin manquant dans MainActivity.java (idempotent, un
+// plugin déjà enregistré est laissé tel quel).
+const pluginClasses = pluginFiles.map((f) => f.replace('.kt', ''));
 let mainActivity = readFileSync(mainActivityPath, 'utf8');
 
-if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
+if (!mainActivity.includes('onCreate(Bundle savedInstanceState)')) {
   mainActivity = mainActivity
     .replace(
       "import com.getcapacitor.BridgeActivity;",
@@ -60,23 +84,28 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
         'public class MainActivity extends BridgeActivity {',
         '    @Override',
         '    public void onCreate(Bundle savedInstanceState) {',
-        '        registerPlugin(DynamicColorPlugin.class);',
-        '        registerPlugin(ApkInstallerPlugin.class);',
         '        super.onCreate(savedInstanceState);',
         '    }',
         '}',
       ].join('\n'),
     );
+}
 
+let registeredAny = false;
+for (const className of pluginClasses) {
+  const registration = `registerPlugin(${className}.class);`;
+  if (!mainActivity.includes(registration)) {
+    mainActivity = mainActivity.replace(
+      'super.onCreate(savedInstanceState);',
+      `${registration}\n        super.onCreate(savedInstanceState);`,
+    );
+    registeredAny = true;
+  }
+}
+
+if (registeredAny) {
   writeFileSync(mainActivityPath, mainActivity);
-  console.log('DynamicColorPlugin + ApkInstallerPlugin enregistrés dans MainActivity.java');
-} else if (!mainActivity.includes('registerPlugin(ApkInstallerPlugin.class)')) {
-  mainActivity = mainActivity.replace(
-    'registerPlugin(DynamicColorPlugin.class);',
-    'registerPlugin(DynamicColorPlugin.class);\n        registerPlugin(ApkInstallerPlugin.class);',
-  );
-  writeFileSync(mainActivityPath, mainActivity);
-  console.log('ApkInstallerPlugin enregistré dans MainActivity.java');
+  console.log('Plugins manquants enregistrés dans MainActivity.java');
 } else {
   console.log('Plugins déjà enregistrés dans MainActivity.java, rien à faire.');
 }
