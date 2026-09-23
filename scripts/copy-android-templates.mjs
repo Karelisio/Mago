@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const packageDir = 'android/app/src/main/java/com/karelisio/mago';
@@ -80,10 +80,28 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
 const resDir = 'android/app/src/main/res';
 const iconTemplatesDir = join(templatesDir, 'icon');
 
+// Le template Capacitor stock embarque déjà un ic_launcher_foreground.xml
+// (son propre dégradé par défaut) dans res/drawable-v24/ — un dossier avec
+// un qualificatif PLUS spécifique que notre res/drawable/ non qualifié.
+// Android résout toujours le qualificatif le plus spécifique en premier,
+// donc sans ça notre icône ne serait jamais choisie sur un appareil réel
+// (API 24+), même si aapt2 compile les deux fichiers sans erreur. On
+// supprime donc toute variante stock (quel que soit son qualificatif
+// drawable-*) avant de copier la nôtre dans le dossier non qualifié.
+for (const entry of readdirSync(resDir, { withFileTypes: true })) {
+  if (!entry.isDirectory() || !entry.name.startsWith('drawable')) continue;
+  const dir = join(resDir, entry.name);
+  for (const file of readdirSync(dir)) {
+    if (/^ic_launcher_(foreground|monochrome)\.(xml|png)$/.test(file)) {
+      unlinkSync(join(dir, file));
+    }
+  }
+}
+
 mkdirSync(join(resDir, 'drawable'), { recursive: true });
 copyFileSync(join(iconTemplatesDir, 'ic_launcher_foreground.xml'), join(resDir, 'drawable', 'ic_launcher_foreground.xml'));
 copyFileSync(join(iconTemplatesDir, 'ic_launcher_monochrome.xml'), join(resDir, 'drawable', 'ic_launcher_monochrome.xml'));
-console.log('Vecteurs de l\'icône (foreground + monochrome) copiés dans res/drawable');
+console.log('Vecteurs de l\'icône (foreground + monochrome) copiés dans res/drawable (variantes stock qualifiées supprimées)');
 
 // Le template Capacitor génère ce fichier avec un fond blanc par défaut ;
 // on le remplace par le ton pêche de la palette Mago (assorti au fond du
