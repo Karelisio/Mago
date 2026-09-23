@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { readQueue, enqueueEntry, removeEntry, type QueueEntry, type QueueTable } from '../lib/offlineQueue';
+import { readQueue, enqueueEntry, removeEntry, clearQueue, type QueueEntry, type QueueTable } from '../lib/offlineQueue';
+import { logSyncError } from '../lib/syncErrorLog';
 
 export type SyncStatus = 'synced' | 'pending' | 'offline';
 
@@ -10,9 +11,20 @@ interface SyncContextValue {
   pendingCount: number;
   enqueue: (table: QueueTable, row: QueueEntry['row']) => Promise<void>;
   flush: () => Promise<void>;
+  resetQueue: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextValue | undefined>(undefined);
+
+function describeError(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const e = err as { message?: string; code?: string; details?: string; hint?: string };
+    const parts = [e.code, e.message, e.details, e.hint].filter(Boolean);
+    if (parts.length > 0) return parts.join(' — ');
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
@@ -83,11 +95,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           }
 
           try {
-            const { data: serverRow } = await supabase
+            const { data: serverRow, error: selectError } = await supabase
               .from(entry.table)
               .select('updated_at')
               .eq('id', entry.row.id)
               .maybeSingle();
+            if (selectError) throw selectError;
 
             const serverIsNewer = serverRow && new Date(serverRow.updated_at) > new Date(entry.row.updated_at);
 
@@ -113,7 +126,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             // On laisse cette entrée en queue pour un futur essai, mais on continue
             // les autres : une erreur isolée (ex. liste pas encore synchronisée pour
             // un de ses articles) ne doit pas bloquer le reste de la queue.
+            const message = describeError(err);
             console.error('Sync flush failed for entry', entry, err);
+            void logSyncError(entry.table, entry.row.id, message);
           }
         }
       } while (pendingFlushRequested.current);
@@ -122,10 +137,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function resetQueue() {
+    const empty = await clearQueue();
+    setQueue(empty);
+  }
+
   const status: SyncStatus = !isOnline ? 'offline' : queue.length > 0 ? 'pending' : 'synced';
 
   return (
-    <SyncContext.Provider value={{ status, pendingCount: queue.length, enqueue, flush }}>
+    <SyncContext.Provider value={{ status, pendingCount: queue.length, enqueue, flush, resetQueue }}>
       {children}
     </SyncContext.Provider>
   );

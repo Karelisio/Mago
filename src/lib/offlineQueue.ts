@@ -57,3 +57,10 @@ export function removeEntry(table: QueueTable, id: string): Promise<QueueEntry[]
     return next;
   });
 }
+
+export function clearQueue(): Promise<QueueEntry[]> {
+  return withLock(async () => {
+    await writeQueueRaw([]);
+    return [];
+  });
+}

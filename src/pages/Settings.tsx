@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useInvites } from '../hooks/useInvites';
 import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
+import { SyncDiagnostics } from '../components/SyncDiagnostics';
 
 export function Settings() {
   const { session, signOut } = useAuth();
@@ -43,6 +44,9 @@ export function Settings() {
           Se déconnecter
         </button>
       </div>
+
+      <h3>Diagnostic de synchronisation</h3>
+      <SyncDiagnostics />
 
       <h3>Mon/ma partenaire</h3>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
