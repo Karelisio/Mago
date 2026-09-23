@@ -107,7 +107,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             const serverIsNewer = serverRow && new Date(serverRow.updated_at) > new Date(entry.row.updated_at);
 
             if (!serverIsNewer) {
-              const { error } = await supabase.from(entry.table).upsert(entry.row);
+              // Volontairement pas de .upsert() : un INSERT ... ON CONFLICT DO UPDATE
+              // exige que la policy RLS UPDATE soit aussi satisfaite même quand aucun
+              // conflit n'a lieu. Pour une ligne toute neuve, cette policy dépend d'un
+              // trigger (list_members) qui n'a pas encore tourné → RLS violation
+              // systématique. On sait déjà si la ligne existe grâce au SELECT ci-dessus,
+              // donc on choisit explicitement insert (policy INSERT) ou update
+              // (policy UPDATE) au lieu de laisser Postgres exiger les deux.
+              const { error } = serverRow
+                ? await supabase.from(entry.table).update(entry.row).eq('id', entry.row.id)
+                : await supabase.from(entry.table).insert(entry.row);
               if (error) throw error;
             }
 
