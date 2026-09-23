@@ -46,6 +46,7 @@ export function useItems(listId: string) {
       completed: false,
       is_relevant: true,
       added_by: session.user.id,
+      last_modified_by: session.user.id,
       created_at: now,
       updated_at: now,
     };
@@ -54,25 +55,38 @@ export function useItems(listId: string) {
   }
 
   async function toggleCompleted(item: ItemRow) {
-    const updated: ItemRow = { ...item, completed: !item.completed, updated_at: new Date().toISOString() };
+    if (!session) return;
+    const updated: ItemRow = {
+      ...item,
+      completed: !item.completed,
+      last_modified_by: session.user.id,
+      updated_at: new Date().toISOString(),
+    };
     patchCache((items) => items.map((i) => (i.id === item.id ? updated : i)));
     await enqueue('items', updated as unknown as Record<string, unknown> & { id: string; updated_at: string });
   }
 
   async function editItem(item: ItemRow, changes: Partial<Pick<ItemRow, 'name' | 'qty' | 'unit' | 'category'>>) {
-    const updated: ItemRow = { ...item, ...changes, updated_at: new Date().toISOString() };
+    if (!session) return;
+    const updated: ItemRow = {
+      ...item,
+      ...changes,
+      last_modified_by: session.user.id,
+      updated_at: new Date().toISOString(),
+    };
     patchCache((items) => items.map((i) => (i.id === item.id ? updated : i)));
     await enqueue('items', updated as unknown as Record<string, unknown> & { id: string; updated_at: string });
   }
 
   async function clearCheckedItems(items: ItemRow[]) {
+    if (!session) return;
     const checked = items.filter((i) => i.completed);
     if (checked.length === 0) return;
     const now = new Date().toISOString();
     const checkedIds = new Set(checked.map((i) => i.id));
     patchCache((current) => current.filter((i) => !checkedIds.has(i.id)));
     for (const item of checked) {
-      const updated: ItemRow = { ...item, is_relevant: false, updated_at: now };
+      const updated: ItemRow = { ...item, is_relevant: false, last_modified_by: session.user.id, updated_at: now };
       await enqueue('items', updated as unknown as Record<string, unknown> & { id: string; updated_at: string });
     }
   }

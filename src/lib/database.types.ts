@@ -28,6 +28,16 @@ export interface ItemRow {
   completed: boolean;
   is_relevant: boolean;
   added_by: string;
+  last_modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeviceTokenRow {
+  id: string;
+  user_id: string;
+  fcm_token: string;
+  platform: string;
   created_at: string;
   updated_at: string;
 }
