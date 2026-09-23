@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ : mêmes tons system_accent1/neutral1 que DynamicColorPlugin.kt,
+     consommés directement en XML pour le widget (pas besoin de plugin ici).
+     Note : le qualificatif "night" a priorité sur "v31" dans la résolution
+     Android, donc ce fichier ne s'applique en pratique qu'en thème clair —
+     le thème sombre retombe sur widget_colors_night.xml (repli statique,
+     toujours cohérent visuellement). -->
+<resources>
+    <color name="widget_on_surface">@android:color/system_neutral1_900</color>
+    <color name="widget_on_surface_variant">@android:color/system_neutral2_700</color>
+    <color name="widget_gradient_start">@android:color/system_accent1_100</color>
+    <color name="widget_gradient_end">@android:color/system_neutral1_10</color>
+</resources>

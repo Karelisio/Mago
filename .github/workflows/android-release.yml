@@ -63,6 +63,9 @@ jobs:
       - name: Configure permission de mise à jour in-app
         run: node scripts/patch-android-manifest-extra.mjs
 
+      - name: Configure le widget écran d'accueil + service FCM
+        run: node scripts/patch-android-widget-manifest.mjs
+
       - name: Configure release signing
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
