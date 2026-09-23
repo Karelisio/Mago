@@ -40,16 +40,27 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Configure release signing
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          node scripts/patch-android-signing.mjs
+
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
 
       - name: Locate APK
         id: apk
-        run: echo "path=android/app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_OUTPUT"
+        run: echo "path=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
