@@ -8,13 +8,11 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
-/**
- * Expose la palette Material You dynamique (Android 12+, extraite du fond
- * d'écran de l'utilisateur) au JS, pour qu'elle remplace la palette CSS fixe
- * quand elle est disponible. Les tons system_accent1_*/system_neutral2_*
- * suivent le mapping standard du schéma de couleurs dynamiques Material 3
- * (primary = accent1 ton 40/80, primaryContainer = accent1 ton 90/30, etc).
- */
+// Expose la palette Material You dynamique (Android 12+, extraite du fond
+// d'écran de l'utilisateur) au JS, pour qu'elle remplace la palette CSS fixe
+// quand elle est disponible. Les tons system_accent1_x / system_neutral2_x
+// suivent le mapping standard du schéma de couleurs dynamiques Material 3
+// (primary = accent1 ton 40/80, primaryContainer = accent1 ton 90/30, etc).
 @CapacitorPlugin(name = "DynamicColor")
 class DynamicColorPlugin : Plugin() {
 
