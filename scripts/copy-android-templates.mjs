@@ -61,7 +61,7 @@ if (!appGradle.includes('com.google.firebase:firebase-messaging')) {
 }
 
 mkdirSync(packageDir, { recursive: true });
-const pluginFiles = ['DynamicColorPlugin.kt', 'ApkInstallerPlugin.kt', 'PushTokenPlugin.kt'];
+const pluginFiles = ['DynamicColorPlugin.kt', 'ApkInstallerPlugin.kt', 'PushTokenPlugin.kt', 'WidgetBridgePlugin.kt'];
 for (const file of pluginFiles) {
   copyFileSync(join(templatesDir, file), join(packageDir, file));
 }

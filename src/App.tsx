@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { usePushRegistration } from './hooks/usePushRegistration';
+import { useWidgetSync } from './hooks/useWidgetSync';
 import { Login } from './pages/Login';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
@@ -18,6 +19,7 @@ export function App() {
   const location = useLocation();
   const isGradientRoute = location.pathname.startsWith('/lists');
   usePushRegistration();
+  useWidgetSync();
 
   return (
     <div className="app-shell">
