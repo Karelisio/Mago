@@ -46,12 +46,12 @@ export function Lists() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         <input
           placeholder="Nouvelle liste"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: 120 }}
         />
         <select value={newType} onChange={(e) => setNewType(e.target.value as ListType)}>
           {Object.entries(TYPE_LABELS).map(([value, label]) => (

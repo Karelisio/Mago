@@ -45,6 +45,7 @@ body {
   font-family: 'Roboto', system-ui, -apple-system, sans-serif;
   background: var(--md-surface);
   color: var(--md-on-surface);
+  overflow-x: hidden;
 }
 
 button {
@@ -60,8 +61,11 @@ button {
 .app-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  padding-left: max(env(safe-area-inset-left), 16px);
+  padding-right: max(env(safe-area-inset-right), 16px);
 }
 
 .bottom-nav {
@@ -69,6 +73,8 @@ button {
   border-top: 1px solid var(--md-surface-variant);
   background: var(--md-surface);
   padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .bottom-nav a {
@@ -163,5 +169,7 @@ select {
   justify-content: space-between;
   padding: 16px;
   padding-top: max(env(safe-area-inset-top), 16px);
+  padding-left: max(env(safe-area-inset-left), 16px);
+  padding-right: max(env(safe-area-inset-right), 16px);
   border-bottom: 1px solid var(--md-surface-variant);
 }
