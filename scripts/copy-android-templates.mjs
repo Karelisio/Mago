@@ -110,12 +110,47 @@ if (registeredAny) {
   console.log('Plugins déjà enregistrés dans MainActivity.java, rien à faire.');
 }
 
+const resDir = 'android/app/src/main/res';
+
+// Widget écran d'accueil + service FCM (Phase 3). Ce ne sont PAS des plugins
+// Capacitor (AppWidgetProvider / FirebaseMessagingService sont des classes du
+// framework Android standard) : on les copie directement, sans passer par
+// registerPlugin(). Le receiver/service sont déclarés dans AndroidManifest.xml
+// par patch-android-widget-manifest.mjs, pas ici.
+const widgetTemplatesDir = join(templatesDir, 'widget');
+for (const file of ['MagoFcmService.kt', 'MagoWidgetProvider.kt']) {
+  copyFileSync(join(templatesDir, file), join(packageDir, file));
+}
+console.log('MagoFcmService.kt + MagoWidgetProvider.kt copiés dans', packageDir);
+
+mkdirSync(join(resDir, 'xml'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_info.xml'), join(resDir, 'xml', 'widget_info.xml'));
+
+mkdirSync(join(resDir, 'layout'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_list_glance.xml'), join(resDir, 'layout', 'widget_list_glance.xml'));
+
+mkdirSync(join(resDir, 'drawable'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_background.xml'), join(resDir, 'drawable', 'widget_background.xml'));
+
+// Couleurs du widget : clair/sombre en repli statique + variante Android 12+
+// pointant vers les tons dynamiques du système (mêmes tons que
+// DynamicColorPlugin.kt, mais consommés directement en XML ici).
+mkdirSync(join(resDir, 'values'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_colors_light.xml'), join(resDir, 'values', 'widget_colors.xml'));
+
+mkdirSync(join(resDir, 'values-night'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_colors_night.xml'), join(resDir, 'values-night', 'widget_colors.xml'));
+
+mkdirSync(join(resDir, 'values-v31'), { recursive: true });
+copyFileSync(join(widgetTemplatesDir, 'widget_colors_v31.xml'), join(resDir, 'values-v31', 'widget_colors.xml'));
+
+console.log('Ressources du widget (xml/layout/drawable/couleurs) copiées dans res/');
+
 // Icône de l'app (liste à cocher + deux anneaux entrelacés pour le couple,
 // motif partagé avec les autres apps de la même famille). L'icône adaptive
 // (Android 8+) référence des vector drawables directement : pas besoin de
 // rasteriser quoi que ce soit pour ça. Seuls les mipmaps legacy (Android < 8,
 // ic_launcher.png / ic_launcher_round.png) doivent être des PNG déjà aplatis.
-const resDir = 'android/app/src/main/res';
 const iconTemplatesDir = join(templatesDir, 'icon');
 
 // Le template Capacitor stock embarque déjà un ic_launcher_foreground.xml

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_on_surface">#201A15</color>
+    <color name="widget_on_surface_variant">#53433A</color>
+    <color name="widget_gradient_start">#FFDBC7</color>
+    <color name="widget_gradient_end">#FFFBF8</color>
+</resources>
