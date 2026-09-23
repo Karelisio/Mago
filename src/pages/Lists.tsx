@@ -68,7 +68,8 @@ export function Lists() {
       {isLoading && <p>Chargement…</p>}
 
       {filtered.map((list) => (
-        <div className="card" key={list.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="list-card" key={list.id}>
+          <span className={`list-dot ${list.type}`} />
           <Link to={`/lists/${list.id}`} style={{ color: 'inherit', textDecoration: 'none', flex: 1 }}>
             <strong>{list.name}</strong>
             <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>{TYPE_LABELS[list.type]}</div>
