@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
   const { data: tokens, error: tokensError } = await supabase
     .from('device_tokens')
-    .select('id, fcm_token')
+    .select('id, fcm_token, user_id')
     .in('user_id', recipientIds);
   if (tokensError) {
     return new Response(`Erreur tokens : ${tokensError.message}`, { status: 500 });
@@ -60,28 +60,32 @@ Deno.serve(async (req) => {
 
   const { data: items } = await supabase
     .from('items')
-    .select('name, completed')
+    .select('*')
     .eq('list_id', payload.list_id)
     .eq('is_relevant', true);
 
   const remaining = (items ?? []).filter((i) => !i.completed);
   const total = items?.length ?? 0;
 
-  const data: Record<string, string> = {
-    list_id: payload.list_id,
-    list_name: list?.name ?? '',
-    remaining: String(remaining.length),
-    total: String(total),
-  };
-  remaining.slice(0, 5).forEach((item, i) => {
-    data[`item_${i + 1}`] = item.name;
-  });
-
   const serviceAccount = JSON.parse(Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')!);
   const projectId = Deno.env.get('FCM_PROJECT_ID')!;
 
+  // Le snapshot contient les lignes complètes (mêmes noms de colonnes que
+  // Postgres) : si le/la destinataire coche un article depuis le widget
+  // app fermée, ces lignes sont mises en attente telles quelles dans la
+  // même queue de sync hors-ligne que le reste de l'app (voir
+  // offlineQueue.ts côté client, et MagoWidgetProvider.kt côté natif) —
+  // d'où user_id qui doit être celui du destinataire, pas de l'auteur.
   const staleTokenIds: string[] = [];
-  for (const { id, fcm_token } of tokens) {
+  for (const { id, fcm_token, user_id } of tokens) {
+    const snapshot = {
+      list_id: payload.list_id,
+      list_name: list?.name ?? '',
+      user_id,
+      total,
+      items: remaining.slice(0, 5),
+    };
+    const data = { snapshot: JSON.stringify(snapshot) };
     const result = await sendFcmDataMessage(serviceAccount, projectId, fcm_token, data, payload.list_id);
     if (!result.ok && (result.status === 404 || result.errorCode === 'UNREGISTERED')) {
       staleTokenIds.push(id);

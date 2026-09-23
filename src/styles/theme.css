@@ -132,20 +132,31 @@ button {
   flex-shrink: 0;
 }
 
-.list-dot.courses {
+/* Catégories gérées à la volée par l'utilisateur : pas de nom fixe possible
+   par catégorie, donc un petit jeu de tons assigné par hash du nom (voir
+   categoryTone() dans Lists.tsx) plutôt que des classes par valeur. */
+.list-dot.tone-0 {
   border-color: var(--md-primary);
 }
 
-.list-dot.diy {
+.list-dot.tone-1 {
   border-color: var(--md-outline);
 }
 
-.list-dot.cadeaux {
+.list-dot.tone-2 {
   border-color: var(--md-on-primary-container);
 }
 
-.list-dot.autre {
+.list-dot.tone-3 {
   border-color: var(--md-on-surface-variant);
+}
+
+.list-dot.tone-4 {
+  border-color: var(--md-success);
+}
+
+.list-dot.tone-5 {
+  border-color: var(--md-error);
 }
 
 .btn-primary {

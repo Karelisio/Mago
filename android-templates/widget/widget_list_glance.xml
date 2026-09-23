@@ -23,43 +23,58 @@
         android:textColor="@color/widget_on_surface_variant"
         android:textSize="12sp" />
 
-    <TextView
+    <LinearLayout
         android:id="@+id/widget_item_1"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="13sp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_1" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:id="@+id/widget_item_2"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="13sp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_2" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:id="@+id/widget_item_3"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="13sp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_3" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:id="@+id/widget_item_4"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="13sp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_4" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:id="@+id/widget_item_5"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="13sp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_5" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 </LinearLayout>

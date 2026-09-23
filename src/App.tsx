@@ -17,7 +17,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export function App() {
   const { session } = useAuth();
   const location = useLocation();
-  const isGradientRoute = location.pathname.startsWith('/lists');
+  const isGradientRoute = location.pathname.startsWith('/lists') || location.pathname.startsWith('/settings');
   usePushRegistration();
   useWidgetSync();
 
