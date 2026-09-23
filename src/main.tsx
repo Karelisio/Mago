@@ -6,9 +6,11 @@ import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from './contexts/SyncContext';
 import { App } from './App';
 import { setupEdgeToEdge } from './lib/statusBar';
+import { setupDynamicColor } from './lib/dynamicColor';
 import './styles/theme.css';
 
 void setupEdgeToEdge();
+void setupDynamicColor();
 
 const queryClient = new QueryClient({
   defaultOptions: {
