@@ -3,9 +3,70 @@ import { useAuth } from '../contexts/AuthContext';
 import { useInvites } from '../hooks/useInvites';
 import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
-import { SyncDiagnostics } from '../components/SyncDiagnostics';
+import { useListCategories, useItemCategories } from '../hooks/useCategories';
 import { MagoIcon } from '../components/MagoIcon';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+
+function CategoryManager({
+  title,
+  categories,
+  addCategory,
+  deleteCategory,
+}: {
+  title: string;
+  categories: { id: string; name: string }[];
+  addCategory: (name: string) => Promise<{ error: string | null }>;
+  deleteCategory: (id: string) => Promise<{ error: string | null }>;
+}) {
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function handleAdd() {
+    if (!name.trim()) return;
+    const { error } = await addCategory(name);
+    setMessage(error);
+    if (!error) setName('');
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <strong>{title}</strong>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {categories.map((c) => (
+          <span
+            key={c.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--md-surface-variant)',
+              borderRadius: 16,
+              padding: '4px 8px 4px 12px',
+              fontSize: 13,
+            }}
+          >
+            {c.name}
+            <button
+              className="btn-text"
+              style={{ padding: 0, minWidth: 0, lineHeight: 1 }}
+              onClick={() => deleteCategory(c.id)}
+              aria-label={`Supprimer ${c.name}`}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input placeholder="Nouvelle catégorie" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
+        <button className="btn-primary" onClick={handleAdd}>
+          Ajouter
+        </button>
+      </div>
+      {message && <p style={{ color: 'var(--md-error)', margin: 0 }}>{message}</p>}
+    </div>
+  );
+}
 
 export function Settings() {
   const { session, signOut } = useAuth();
@@ -13,6 +74,8 @@ export function Settings() {
   const { sent, received, sendInvite, acceptInvite, declineInvite } = useInvites();
   const partner = usePartnership();
   const update = useAppUpdate();
+  const listCategories = useListCategories();
+  const itemCategories = useItemCategories();
 
   const [email, setEmail] = useState('');
   const [listId, setListId] = useState('');
@@ -92,8 +155,21 @@ export function Settings() {
         </button>
       </div>
 
-      <h3>Diagnostic de synchronisation</h3>
-      <SyncDiagnostics />
+      <h3>Catégories de listes</h3>
+      <CategoryManager
+        title="Types de liste"
+        categories={listCategories.data ?? []}
+        addCategory={listCategories.addCategory}
+        deleteCategory={listCategories.deleteCategory}
+      />
+
+      <h3>Catégories d'articles</h3>
+      <CategoryManager
+        title="Catégories d'articles"
+        categories={itemCategories.data ?? []}
+        addCategory={itemCategories.addCategory}
+        deleteCategory={itemCategories.deleteCategory}
+      />
 
       <h3>Mon/ma partenaire</h3>
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

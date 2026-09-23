@@ -1,28 +1,38 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLists } from '../hooks/useLists';
-import type { ListType } from '../lib/database.types';
+import { useListCategories } from '../hooks/useCategories';
+import { categoryTone } from '../lib/categoryTone';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { MagoIcon } from '../components/MagoIcon';
 
-const TYPE_LABELS: Record<ListType, string> = {
-  courses: 'Courses',
-  diy: 'DIY',
-  cadeaux: 'Cadeaux',
-  autre: 'Autre',
-};
-
 export function Lists() {
   const { data: lists, isLoading, createList, deleteList, refetch, isRefetching } = useLists();
-  const [filter, setFilter] = useState<ListType | 'all'>('all');
+  const { data: categories } = useListCategories();
+  const [filter, setFilter] = useState<string>('all');
   const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<ListType>('courses');
+  const [newType, setNewType] = useState('');
+
+  const categoryNames = (categories ?? []).map((c) => c.name);
+  const effectiveNewType = newType || categoryNames[0] || '';
 
   const filtered = (lists ?? []).filter((l) => filter === 'all' || l.type === filter);
 
+  // Rangées par catégorie (ordre alphabétique), triées par nom dans chaque
+  // catégorie — l'ordre de récupération (created_at) reste inchangé pour le
+  // widget, ce regroupement n'affecte que l'affichage.
+  const groups = new Map<string, typeof filtered>();
+  for (const list of filtered) {
+    const key = list.type || '(sans catégorie)';
+    groups.set(key, [...(groups.get(key) ?? []), list]);
+  }
+  const sortedGroups = [...groups.entries()]
+    .map(([type, items]) => [type, [...items].sort((a, b) => a.name.localeCompare(b.name))] as const)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
   async function handleCreate() {
-    if (!newName.trim()) return;
-    await createList(newName.trim(), newType);
+    if (!newName.trim() || !effectiveNewType) return;
+    await createList(newName.trim(), effectiveNewType);
     setNewName('');
   }
 
@@ -40,11 +50,11 @@ export function Lists() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <select value={filter} onChange={(e) => setFilter(e.target.value as ListType | 'all')}>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">Toutes</option>
-          {Object.entries(TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
+          {categoryNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
@@ -60,30 +70,34 @@ export function Lists() {
           onChange={(e) => setNewName(e.target.value)}
           style={{ flex: 1, minWidth: 120 }}
         />
-        <select value={newType} onChange={(e) => setNewType(e.target.value as ListType)}>
-          {Object.entries(TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
+        <select value={effectiveNewType} onChange={(e) => setNewType(e.target.value)}>
+          {categoryNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
-        <button className="btn-primary" onClick={handleCreate}>
+        <button className="btn-primary" onClick={handleCreate} disabled={!effectiveNewType}>
           Créer
         </button>
       </div>
 
       {isLoading && <p>Chargement…</p>}
 
-      {filtered.map((list) => (
-        <div className="list-card" key={list.id}>
-          <span className={`list-dot ${list.type}`} />
-          <Link to={`/lists/${list.id}`} style={{ color: 'inherit', textDecoration: 'none', flex: 1 }}>
-            <strong>{list.name}</strong>
-            <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>{TYPE_LABELS[list.type]}</div>
-          </Link>
-          <button className="btn-text" onClick={() => deleteList(list)} aria-label="Supprimer la liste">
-            Supprimer
-          </button>
+      {sortedGroups.map(([type, groupLists]) => (
+        <div key={type}>
+          <h3 style={{ margin: '12px 0 8px' }}>{type}</h3>
+          {groupLists.map((list) => (
+            <div className="list-card" key={list.id}>
+              <span className={`list-dot tone-${categoryTone(list.type)}`} />
+              <Link to={`/lists/${list.id}`} style={{ color: 'inherit', textDecoration: 'none', flex: 1 }}>
+                <strong>{list.name}</strong>
+              </Link>
+              <button className="btn-text" onClick={() => deleteList(list)} aria-label="Supprimer la liste">
+                Supprimer
+              </button>
+            </div>
+          ))}
         </div>
       ))}
 

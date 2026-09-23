@@ -131,6 +131,8 @@ copyFileSync(join(widgetTemplatesDir, 'widget_list_glance.xml'), join(resDir, 'l
 
 mkdirSync(join(resDir, 'drawable'), { recursive: true });
 copyFileSync(join(widgetTemplatesDir, 'widget_background.xml'), join(resDir, 'drawable', 'widget_background.xml'));
+copyFileSync(join(widgetTemplatesDir, 'widget_checkbox_unchecked.xml'), join(resDir, 'drawable', 'widget_checkbox_unchecked.xml'));
+copyFileSync(join(widgetTemplatesDir, 'widget_checkbox_checked.xml'), join(resDir, 'drawable', 'widget_checkbox_checked.xml'));
 
 // Couleurs du widget : clair/sombre en repli statique + variante Android 12+
 // pointant vers les tons dynamiques du système (mêmes tons que

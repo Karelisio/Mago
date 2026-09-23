@@ -7,29 +7,20 @@ import com.google.firebase.messaging.RemoteMessage
 // Reçoit le push FCM data-only envoyé par l'Edge Function notify-item-change
 // (voir supabase/functions/notify-item-change) : pas de "notification" dans
 // le payload, donc pas de popup système, juste un réveil silencieux de
-// l'app pour rafraîchir le widget. Le snapshot reçu (nom de liste, compteurs,
-// jusqu'à 5 articles) est mis en cache dans des SharedPreferences dédiées,
-// que MagoWidgetProvider relit pour se redessiner immédiatement.
+// l'app pour rafraîchir le widget. Le snapshot reçu (JSON déjà entièrement
+// formé côté Edge Function : nom de liste, compteur, jusqu'à 5 lignes
+// d'articles complètes) est stocké tel quel, dans le même format et sous la
+// même clé que WidgetBridgePlugin (mis à jour directement par l'app) — une
+// seule source de vérité pour MagoWidgetProvider.
 class MagoFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        val data = remoteMessage.data
-        if (data.isEmpty()) return
+        val snapshotJson = remoteMessage.data["snapshot"] ?: return
 
-        val prefs = getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
-        val editor = prefs.edit()
-        editor.putString("list_name", data["list_name"])
-        editor.putString("remaining", data["remaining"])
-        editor.putString("total", data["total"])
-        for (i in 1..5) {
-            val key = "item_$i"
-            if (data.containsKey(key)) {
-                editor.putString(key, data[key])
-            } else {
-                editor.remove(key)
-            }
-        }
-        editor.apply()
+        getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
+            .edit()
+            .putString("snapshot_json", snapshotJson)
+            .apply()
 
         MagoWidgetProvider.refreshAll(applicationContext)
     }

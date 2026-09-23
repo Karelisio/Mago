@@ -1,5 +1,12 @@
-export type ListType = 'courses' | 'diy' | 'cadeaux' | 'autre';
+export type ListType = string;
 export type InviteStatus = 'pending' | 'accepted' | 'declined';
+
+export interface CategoryRow {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+}
 
 export interface ListRow {
   id: string;
