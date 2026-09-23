@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { supabase } from '../lib/supabase';
+import { AUTH_CALLBACK_URL, extractSessionTokensFromUrl } from '../lib/deeplink';
 
 interface AuthContextValue {
   session: Session | null;
@@ -28,11 +31,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => {
+      const tokens = extractSessionTokensFromUrl(url);
+      if (tokens) {
+        void supabase.auth.setSession(tokens);
+      }
+    });
+
+    return () => {
+      void listenerPromise.then((listener) => listener.remove());
+    };
+  }, []);
+
   async function signInWithMagicLink(email: string) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: Capacitor.isNativePlatform() ? AUTH_CALLBACK_URL : window.location.origin,
       },
     });
     return { error: error?.message ?? null };
