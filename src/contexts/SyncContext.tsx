@@ -18,10 +18,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const flushing = useRef(false);
+  const pendingFlushRequested = useRef(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    readQueue().then(setQueue);
+    readQueue().then((initial) => {
+      setQueue(initial);
+      if (initial.length > 0 && navigator.onLine) {
+        void flush();
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -56,44 +63,60 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }
 
   async function flush() {
-    if (flushing.current) return;
+    if (flushing.current) {
+      // Un flush tourne déjà : on redemandera un passage complet dès qu'il aura fini,
+      // pour ne jamais perdre silencieusement une entrée arrivée pendant qu'il tournait.
+      pendingFlushRequested.current = true;
+      return;
+    }
     if (!navigator.onLine) return;
     flushing.current = true;
     try {
-      let current = await readQueue();
-      for (const entry of current) {
-        try {
-          const { data: serverRow } = await supabase
-            .from(entry.table)
-            .select('updated_at')
-            .eq('id', entry.row.id)
-            .maybeSingle();
+      do {
+        pendingFlushRequested.current = false;
+        let current = await readQueue();
 
-          const serverIsNewer = serverRow && new Date(serverRow.updated_at) > new Date(entry.row.updated_at);
-
-          if (!serverIsNewer) {
-            const { error } = await supabase.from(entry.table).upsert(entry.row);
-            if (error) throw error;
-          }
-
-          current = await removeEntry(entry.table, entry.row.id);
-          setQueue(current);
-
-          if (entry.table === 'items') {
-            const listId = entry.row.list_id as string | undefined;
-            if (listId) void queryClient.invalidateQueries({ queryKey: ['items', listId] });
-          } else if (entry.table === 'lists') {
-            void queryClient.invalidateQueries({ queryKey: ['lists'] });
-          }
-        } catch (err) {
+        for (const entry of current) {
           if (!navigator.onLine) {
             setIsOnline(false);
-            break;
+            return;
           }
-          console.error('Sync flush failed for entry', entry, err);
-          break;
+
+          try {
+            const { data: serverRow } = await supabase
+              .from(entry.table)
+              .select('updated_at')
+              .eq('id', entry.row.id)
+              .maybeSingle();
+
+            const serverIsNewer = serverRow && new Date(serverRow.updated_at) > new Date(entry.row.updated_at);
+
+            if (!serverIsNewer) {
+              const { error } = await supabase.from(entry.table).upsert(entry.row);
+              if (error) throw error;
+            }
+
+            current = await removeEntry(entry.table, entry.row.id);
+            setQueue(current);
+
+            if (entry.table === 'items') {
+              const listId = entry.row.list_id as string | undefined;
+              if (listId) void queryClient.invalidateQueries({ queryKey: ['items', listId] });
+            } else if (entry.table === 'lists') {
+              void queryClient.invalidateQueries({ queryKey: ['lists'] });
+            }
+          } catch (err) {
+            if (!navigator.onLine) {
+              setIsOnline(false);
+              return;
+            }
+            // On laisse cette entrée en queue pour un futur essai, mais on continue
+            // les autres : une erreur isolée (ex. liste pas encore synchronisée pour
+            // un de ses articles) ne doit pas bloquer le reste de la queue.
+            console.error('Sync flush failed for entry', entry, err);
+          }
         }
-      }
+      } while (pendingFlushRequested.current);
     } finally {
       flushing.current = false;
     }
