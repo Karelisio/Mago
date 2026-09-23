@@ -10,7 +10,18 @@ export interface QueueEntry {
   enqueuedAt: string;
 }
 
-export async function readQueue(): Promise<QueueEntry[]> {
+// Toutes les lectures/écritures de la queue passent par ce mutex : deux appels
+// concurrents (ex. créer une liste puis ajouter plusieurs articles très vite)
+// ne doivent jamais faire un read-modify-write basé sur un état déjà périmé.
+let mutex: Promise<unknown> = Promise.resolve();
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = mutex.then(fn, fn);
+  mutex = result.catch(() => undefined);
+  return result;
+}
+
+async function readQueueRaw(): Promise<QueueEntry[]> {
   const { value } = await Preferences.get({ key: QUEUE_KEY });
   if (!value) return [];
   try {
@@ -20,21 +31,29 @@ export async function readQueue(): Promise<QueueEntry[]> {
   }
 }
 
-export async function writeQueue(queue: QueueEntry[]): Promise<void> {
+async function writeQueueRaw(queue: QueueEntry[]): Promise<void> {
   await Preferences.set({ key: QUEUE_KEY, value: JSON.stringify(queue) });
 }
 
-export async function enqueueEntry(entry: QueueEntry): Promise<QueueEntry[]> {
-  const queue = await readQueue();
-  const withoutStale = queue.filter((q) => !(q.table === entry.table && q.row.id === entry.row.id));
-  const next = [...withoutStale, entry];
-  await writeQueue(next);
-  return next;
+export function readQueue(): Promise<QueueEntry[]> {
+  return withLock(() => readQueueRaw());
 }
 
-export async function removeEntry(table: QueueTable, id: string): Promise<QueueEntry[]> {
-  const queue = await readQueue();
-  const next = queue.filter((q) => !(q.table === table && q.row.id === id));
-  await writeQueue(next);
-  return next;
+export function enqueueEntry(entry: QueueEntry): Promise<QueueEntry[]> {
+  return withLock(async () => {
+    const queue = await readQueueRaw();
+    const withoutStale = queue.filter((q) => !(q.table === entry.table && q.row.id === entry.row.id));
+    const next = [...withoutStale, entry];
+    await writeQueueRaw(next);
+    return next;
+  });
+}
+
+export function removeEntry(table: QueueTable, id: string): Promise<QueueEntry[]> {
+  return withLock(async () => {
+    const queue = await readQueueRaw();
+    const next = queue.filter((q) => !(q.table === table && q.row.id === id));
+    await writeQueueRaw(next);
+    return next;
+  });
 }

@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from './contexts/SyncContext';
 import { App } from './App';
+import { setupEdgeToEdge } from './lib/statusBar';
 import './styles/theme.css';
+
+void setupEdgeToEdge();
 
 const queryClient = new QueryClient({
   defaultOptions: {
