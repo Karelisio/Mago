@@ -31,11 +31,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compute release version
+        id: version
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          echo "tag=v${BASE}-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
       - name: Build web app
         run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.tag }}
 
       - name: Add Android platform
         run: |
@@ -49,6 +56,9 @@ jobs:
 
       - name: Configure magic link deep link
         run: node scripts/patch-android-deeplink.mjs
+
+      - name: Configure permission de mise à jour in-app
+        run: node scripts/patch-android-manifest-extra.mjs
 
       - name: Configure release signing
         run: |
@@ -71,12 +81,6 @@ jobs:
       - name: Locate APK
         id: apk
         run: echo "path=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
-
-      - name: Compute release version
-        id: version
-        run: |
-          BASE=$(node -p "require('./package.json').version")
-          echo "tag=v${BASE}-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
