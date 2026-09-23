@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { readQueue, enqueueEntry, removeEntry, clearQueue, type QueueEntry, type QueueTable } from '../lib/offlineQueue';
 import { logSyncError } from '../lib/syncErrorLog';
+import { useAuth } from './AuthContext';
 
 export type SyncStatus = 'synced' | 'pending' | 'offline';
 
@@ -32,6 +33,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const flushing = useRef(false);
   const pendingFlushRequested = useRef(false);
   const queryClient = useQueryClient();
+  const { session } = useAuth();
 
   useEffect(() => {
     readQueue().then((initial) => {
@@ -127,8 +129,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             // les autres : une erreur isolée (ex. liste pas encore synchronisée pour
             // un de ses articles) ne doit pas bloquer le reste de la queue.
             const message = describeError(err);
+            const rowOwnerId = (entry.row.owner_id ?? entry.row.added_by) as string | undefined;
             console.error('Sync flush failed for entry', entry, err);
-            void logSyncError(entry.table, entry.row.id, message);
+            void logSyncError(entry.table, entry.row.id, message, rowOwnerId, session?.user.id);
           }
         }
       } while (pendingFlushRequested.current);

@@ -38,7 +38,9 @@ export function SyncDiagnostics() {
   }
 
   function handleCopy() {
-    const text = errors.map((e) => `${e.at} [${e.table}/${e.rowId}] ${e.message}`).join('\n');
+    const text = errors
+      .map((e) => `${e.at} [${e.table}/${e.rowId}] ${e.message} (owner=${e.rowOwnerId ?? '?'} session=${e.sessionUserId ?? '?'})`)
+      .join('\n');
     void navigator.clipboard?.writeText(text || 'Aucune erreur enregistrée.');
   }
 
@@ -52,6 +54,11 @@ export function SyncDiagnostics() {
           </>
         )}
       </p>
+      {session && (
+        <p style={{ margin: 0, fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
+          user_id : {session.user.id}
+        </p>
+      )}
       <p style={{ margin: 0 }}>En attente de sync : {pendingCount}</p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -76,14 +83,23 @@ export function SyncDiagnostics() {
         <p style={{ margin: 0, color: 'var(--md-on-surface-variant)' }}>Aucune erreur de sync enregistrée.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {errors.map((e, i) => (
-            <div key={i} style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-word' }}>
-              <div style={{ color: 'var(--md-on-surface-variant)' }}>
-                {new Date(e.at).toLocaleTimeString()} · {e.table}/{e.rowId.slice(0, 8)}
+          {errors.map((e, i) => {
+            const mismatch = e.rowOwnerId && e.sessionUserId && e.rowOwnerId !== e.sessionUserId;
+            return (
+              <div key={i} style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-word' }}>
+                <div style={{ color: 'var(--md-on-surface-variant)' }}>
+                  {new Date(e.at).toLocaleTimeString()} · {e.table}/{e.rowId.slice(0, 8)}
+                </div>
+                <div>{e.message}</div>
+                {(e.rowOwnerId || e.sessionUserId) && (
+                  <div style={{ color: mismatch ? 'var(--md-error)' : 'var(--md-on-surface-variant)' }}>
+                    owner={e.rowOwnerId?.slice(0, 8) ?? '?'} session={e.sessionUserId?.slice(0, 8) ?? '?'}
+                    {mismatch ? ' ⚠ différents' : ''}
+                  </div>
+                )}
               </div>
-              <div>{e.message}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
