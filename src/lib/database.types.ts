@@ -40,3 +40,18 @@ export interface InviteRow {
   status: InviteStatus;
   created_at: string;
 }
+
+export interface PartnershipRow {
+  id: string;
+  user_a: string;
+  user_b: string;
+  created_at: string;
+}
+
+export interface PartnerInviteRow {
+  id: string;
+  from_user: string;
+  to_email: string;
+  status: InviteStatus;
+  created_at: string;
+}
