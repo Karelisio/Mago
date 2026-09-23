@@ -44,6 +44,9 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Configure magic link deep link
+        run: node scripts/patch-android-deeplink.mjs
+
       - name: Configure release signing
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
