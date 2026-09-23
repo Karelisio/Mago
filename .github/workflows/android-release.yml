@@ -44,6 +44,9 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Add native templates (plugins natifs custom)
+        run: node scripts/copy-android-templates.mjs
+
       - name: Configure magic link deep link
         run: node scripts/patch-android-deeplink.mjs
 
