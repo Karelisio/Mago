@@ -43,7 +43,8 @@ if (!appGradle.includes("apply plugin: 'kotlin-android'")) {
 
 mkdirSync(packageDir, { recursive: true });
 copyFileSync(join(templatesDir, 'DynamicColorPlugin.kt'), join(packageDir, 'DynamicColorPlugin.kt'));
-console.log('DynamicColorPlugin.kt copié dans', packageDir);
+copyFileSync(join(templatesDir, 'ApkInstallerPlugin.kt'), join(packageDir, 'ApkInstallerPlugin.kt'));
+console.log('DynamicColorPlugin.kt + ApkInstallerPlugin.kt copiés dans', packageDir);
 
 let mainActivity = readFileSync(mainActivityPath, 'utf8');
 
@@ -60,6 +61,7 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
         '    @Override',
         '    public void onCreate(Bundle savedInstanceState) {',
         '        registerPlugin(DynamicColorPlugin.class);',
+        '        registerPlugin(ApkInstallerPlugin.class);',
         '        super.onCreate(savedInstanceState);',
         '    }',
         '}',
@@ -67,9 +69,16 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
     );
 
   writeFileSync(mainActivityPath, mainActivity);
-  console.log('DynamicColorPlugin enregistré dans MainActivity.java');
+  console.log('DynamicColorPlugin + ApkInstallerPlugin enregistrés dans MainActivity.java');
+} else if (!mainActivity.includes('registerPlugin(ApkInstallerPlugin.class)')) {
+  mainActivity = mainActivity.replace(
+    'registerPlugin(DynamicColorPlugin.class);',
+    'registerPlugin(DynamicColorPlugin.class);\n        registerPlugin(ApkInstallerPlugin.class);',
+  );
+  writeFileSync(mainActivityPath, mainActivity);
+  console.log('ApkInstallerPlugin enregistré dans MainActivity.java');
 } else {
-  console.log('DynamicColorPlugin déjà enregistré dans MainActivity.java, rien à faire.');
+  console.log('Plugins déjà enregistrés dans MainActivity.java, rien à faire.');
 }
 
 // Icône de l'app (liste à cocher + deux anneaux entrelacés pour le couple,

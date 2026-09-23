@@ -5,12 +5,14 @@ import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
 import { SyncDiagnostics } from '../components/SyncDiagnostics';
 import { MagoIcon } from '../components/MagoIcon';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 
 export function Settings() {
   const { session, signOut } = useAuth();
   const { data: lists } = useLists();
   const { sent, received, sendInvite, acceptInvite, declineInvite } = useInvites();
   const partner = usePartnership();
+  const update = useAppUpdate();
 
   const [email, setEmail] = useState('');
   const [listId, setListId] = useState('');
@@ -49,6 +51,44 @@ export function Settings() {
         <p>Connecté en tant que {session?.user.email}</p>
         <button className="btn-text" onClick={signOut}>
           Se déconnecter
+        </button>
+      </div>
+
+      <h3>Mise à jour</h3>
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
+          Version installée : {update.currentVersion ?? 'inconnue (build de développement)'}
+        </p>
+        {update.checking && <p>Vérification des mises à jour…</p>}
+        {update.latest && (
+          <>
+            <p>
+              Nouvelle version disponible : <strong>{update.latest.tag}</strong>
+            </p>
+            {update.latest.changelog && (
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0 }}>{update.latest.changelog}</pre>
+            )}
+            {update.canInstall ? (
+              <button className="btn-primary" onClick={update.install} disabled={update.installing}>
+                {update.installing ? 'Téléchargement…' : 'Télécharger et installer'}
+              </button>
+            ) : (
+              <a
+                href={update.latest.apkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-text"
+                style={{ textAlign: 'center', textDecoration: 'none' }}
+              >
+                Télécharger l'APK
+              </a>
+            )}
+          </>
+        )}
+        {!update.checking && !update.latest && !update.error && <p>Mago est à jour.</p>}
+        {update.error && <p style={{ color: 'var(--md-error)' }}>{update.error}</p>}
+        <button className="btn-text" onClick={update.checkForUpdate} disabled={update.checking}>
+          Vérifier à nouveau
         </button>
       </div>
 
