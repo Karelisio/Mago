@@ -11,13 +11,13 @@ export function MagoIcon({ size = 28 }: MagoIconProps) {
       <path
         fill="none"
         stroke="#C4622D"
-        strokeWidth={9}
+        strokeWidth={6}
         d="M62,54 A17,17 0 1,1 28,54 A17,17 0 1,1 62,54 Z"
       />
       <path
         fill="none"
         stroke="#C4622D"
-        strokeWidth={9}
+        strokeWidth={6}
         d="M80,54 A17,17 0 1,1 46,54 A17,17 0 1,1 80,54 Z"
       />
     </svg>

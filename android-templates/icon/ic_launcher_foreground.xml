@@ -4,14 +4,43 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Carte "liste à cocher" -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,24 H70 A8,8 0 0 1 78,32 V74 A8,8 0 0 1 70,82 H38 A8,8 0 0 1 30,74 V32 A8,8 0 0 1 38,24 Z" />
+    <!-- Puces + barres (2 lignes à faire) -->
+    <path
+        android:fillColor="#C4622D"
+        android:pathData="M41,38 A3,3 0 1,1 35,38 A3,3 0 1,1 41,38 Z" />
+    <path
+        android:fillColor="#C4622D"
+        android:pathData="M48,36 H70 A2,2 0 0 1 70,40 H48 A2,2 0 0 1 48,36 Z" />
+    <path
+        android:fillColor="#C4622D"
+        android:pathData="M41,50 A3,3 0 1,1 35,50 A3,3 0 1,1 41,50 Z" />
+    <path
+        android:fillColor="#C4622D"
+        android:pathData="M48,48 H70 A2,2 0 0 1 70,52 H48 A2,2 0 0 1 48,48 Z" />
+    <!-- Coche + barre atténuée (ligne faite) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#C4622D"
-        android:strokeWidth="9"
-        android:pathData="M62,54 A17,17 0 1,1 28,54 A17,17 0 1,1 62,54 Z" />
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M32,62 L35,65 L41,57" />
+    <path
+        android:fillColor="#E8C4AC"
+        android:pathData="M48,60 H70 A2,2 0 0 1 70,64 H48 A2,2 0 0 1 48,60 Z" />
+    <!-- Deux anneaux entrelacés (le couple), même motif que le reste de l'identité Mago -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#9B4A1E"
+        android:strokeWidth="4"
+        android:pathData="M75,75 A8,8 0 1,1 59,75 A8,8 0 1,1 75,75 Z" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#C4622D"
-        android:strokeWidth="9"
-        android:pathData="M80,54 A17,17 0 1,1 46,54 A17,17 0 1,1 80,54 Z" />
+        android:strokeWidth="4"
+        android:pathData="M85,75 A8,8 0 1,1 69,75 A8,8 0 1,1 85,75 Z" />
 </vector>

@@ -1,13 +1,17 @@
 :root {
-  --md-primary: #6750a4;
+  /* Palette tonale Material 3 dérivée de la couleur de marque (terracotta
+     des anneaux de l'icône), pas du violet par défaut du baseline M3 —
+     sert de repli quand la couleur dynamique (Phase 2, Android 12+) n'est
+     pas disponible, et garde l'app visuellement alignée avec l'icône. */
+  --md-primary: #c4622d;
   --md-on-primary: #ffffff;
-  --md-primary-container: #eaddff;
-  --md-on-primary-container: #21005d;
-  --md-surface: #fffbfe;
-  --md-on-surface: #1c1b1f;
-  --md-surface-variant: #e7e0ec;
-  --md-on-surface-variant: #49454f;
-  --md-outline: #79747e;
+  --md-primary-container: #ffdbc7;
+  --md-on-primary-container: #341100;
+  --md-surface: #fffbf8;
+  --md-on-surface: #201a15;
+  --md-surface-variant: #f5ded0;
+  --md-on-surface-variant: #53433a;
+  --md-outline: #85736a;
   --md-error: #b3261e;
   --md-success: #2e7d32;
   --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.15);
@@ -15,15 +19,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --md-primary: #d0bcff;
-    --md-on-primary: #381e72;
-    --md-primary-container: #4f378b;
-    --md-on-primary-container: #eaddff;
-    --md-surface: #1c1b1f;
-    --md-on-surface: #e6e1e5;
-    --md-surface-variant: #49454f;
-    --md-on-surface-variant: #cac4d0;
-    --md-outline: #938f99;
+    --md-primary: #ffb68c;
+    --md-on-primary: #5c2200;
+    --md-primary-container: #7d3300;
+    --md-on-primary-container: #ffdbc7;
+    --md-surface: #201a17;
+    --md-on-surface: #ede0d9;
+    --md-surface-variant: #53433a;
+    --md-on-surface-variant: #d8c2b8;
+    --md-outline: #a08d83;
     --md-error: #f2b8b5;
     --md-success: #81c995;
     --md-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -119,26 +123,29 @@ button {
 }
 
 .list-dot {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
+  background: transparent;
+  border-width: 2.5px;
+  border-style: solid;
   flex-shrink: 0;
 }
 
 .list-dot.courses {
-  background: var(--md-primary);
+  border-color: var(--md-primary);
 }
 
 .list-dot.diy {
-  background: var(--md-outline);
+  border-color: var(--md-outline);
 }
 
 .list-dot.cadeaux {
-  background: var(--md-on-primary-container);
+  border-color: var(--md-on-primary-container);
 }
 
 .list-dot.autre {
-  background: var(--md-on-surface-variant);
+  border-color: var(--md-on-surface-variant);
 }
 
 .btn-primary {

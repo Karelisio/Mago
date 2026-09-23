@@ -72,11 +72,11 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
   console.log('DynamicColorPlugin déjà enregistré dans MainActivity.java, rien à faire.');
 }
 
-// Icône de l'app (deux anneaux entrelacés, motif partagé avec les autres
-// apps de la même famille). L'icône adaptive (Android 8+) référence des
-// vector drawables directement : pas besoin de rasteriser quoi que ce soit
-// pour ça. Seuls les mipmaps legacy (Android < 8, ic_launcher.png /
-// ic_launcher_round.png) doivent être des PNG déjà aplatis.
+// Icône de l'app (liste à cocher + deux anneaux entrelacés pour le couple,
+// motif partagé avec les autres apps de la même famille). L'icône adaptive
+// (Android 8+) référence des vector drawables directement : pas besoin de
+// rasteriser quoi que ce soit pour ça. Seuls les mipmaps legacy (Android < 8,
+// ic_launcher.png / ic_launcher_round.png) doivent être des PNG déjà aplatis.
 const resDir = 'android/app/src/main/res';
 const iconTemplatesDir = join(templatesDir, 'icon');
 
@@ -84,6 +84,22 @@ mkdirSync(join(resDir, 'drawable'), { recursive: true });
 copyFileSync(join(iconTemplatesDir, 'ic_launcher_foreground.xml'), join(resDir, 'drawable', 'ic_launcher_foreground.xml'));
 copyFileSync(join(iconTemplatesDir, 'ic_launcher_monochrome.xml'), join(resDir, 'drawable', 'ic_launcher_monochrome.xml'));
 console.log('Vecteurs de l\'icône (foreground + monochrome) copiés dans res/drawable');
+
+// Le template Capacitor génère ce fichier avec un fond blanc par défaut ;
+// on le remplace par le ton pêche de la palette Mago (assorti au fond du
+// dégradé de l'app, cohérent avec le reste de l'identité terracotta).
+mkdirSync(join(resDir, 'values'), { recursive: true });
+writeFileSync(
+  join(resDir, 'values', 'ic_launcher_background.xml'),
+  [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<resources>',
+    '    <color name="ic_launcher_background">#FFDBC7</color>',
+    '</resources>',
+    '',
+  ].join('\n'),
+);
+console.log('Fond de l\'icône adaptive recoloré en pêche (#FFDBC7)');
 
 for (const name of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
   const adaptiveIconPath = join(resDir, 'mipmap-anydpi-v26', name);
