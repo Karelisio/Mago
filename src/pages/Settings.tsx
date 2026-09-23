@@ -4,6 +4,7 @@ import { useInvites } from '../hooks/useInvites';
 import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
 import { SyncDiagnostics } from '../components/SyncDiagnostics';
+import { MagoIcon } from '../components/MagoIcon';
 
 export function Settings() {
   const { session, signOut } = useAuth();
@@ -35,7 +36,13 @@ export function Settings() {
   return (
     <div>
       <div className="top-bar">
-        <h2>Réglages</h2>
+        <div className="top-bar-title">
+          <MagoIcon size={28} />
+          <div>
+            <h1>Mago</h1>
+            <p className="top-bar-subtitle">Réglages</p>
+          </div>
+        </div>
       </div>
 
       <div className="card">

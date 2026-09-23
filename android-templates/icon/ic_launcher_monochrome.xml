@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Icônes thémées (Android 13+) : le système retinte tout en une seule
+         couleur à partir du canal alpha. Carte en contour (pas de remplissage)
+         pour garder les puces/coche/anneaux visibles par-dessus. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:pathData="M38,24 H70 A8,8 0 0 1 78,32 V74 A8,8 0 0 1 70,82 H38 A8,8 0 0 1 30,74 V32 A8,8 0 0 1 38,24 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M41,38 A3,3 0 1,1 35,38 A3,3 0 1,1 41,38 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M48,36 H70 A2,2 0 0 1 70,40 H48 A2,2 0 0 1 48,36 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M41,50 A3,3 0 1,1 35,50 A3,3 0 1,1 41,50 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M48,48 H70 A2,2 0 0 1 70,52 H48 A2,2 0 0 1 48,48 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M32,62 L35,65 L41,57" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M48,60 H70 A2,2 0 0 1 70,64 H48 A2,2 0 0 1 48,60 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="4"
+        android:pathData="M75,75 A8,8 0 1,1 59,75 A8,8 0 1,1 75,75 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="4"
+        android:pathData="M85,75 A8,8 0 1,1 69,75 A8,8 0 1,1 85,75 Z" />
+</vector>

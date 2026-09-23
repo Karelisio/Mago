@@ -71,3 +71,56 @@ if (!mainActivity.includes('registerPlugin(DynamicColorPlugin.class)')) {
 } else {
   console.log('DynamicColorPlugin déjà enregistré dans MainActivity.java, rien à faire.');
 }
+
+// Icône de l'app (liste à cocher + deux anneaux entrelacés pour le couple,
+// motif partagé avec les autres apps de la même famille). L'icône adaptive
+// (Android 8+) référence des vector drawables directement : pas besoin de
+// rasteriser quoi que ce soit pour ça. Seuls les mipmaps legacy (Android < 8,
+// ic_launcher.png / ic_launcher_round.png) doivent être des PNG déjà aplatis.
+const resDir = 'android/app/src/main/res';
+const iconTemplatesDir = join(templatesDir, 'icon');
+
+mkdirSync(join(resDir, 'drawable'), { recursive: true });
+copyFileSync(join(iconTemplatesDir, 'ic_launcher_foreground.xml'), join(resDir, 'drawable', 'ic_launcher_foreground.xml'));
+copyFileSync(join(iconTemplatesDir, 'ic_launcher_monochrome.xml'), join(resDir, 'drawable', 'ic_launcher_monochrome.xml'));
+console.log('Vecteurs de l\'icône (foreground + monochrome) copiés dans res/drawable');
+
+// Le template Capacitor génère ce fichier avec un fond blanc par défaut ;
+// on le remplace par le ton pêche de la palette Mago (assorti au fond du
+// dégradé de l'app, cohérent avec le reste de l'identité terracotta).
+mkdirSync(join(resDir, 'values'), { recursive: true });
+writeFileSync(
+  join(resDir, 'values', 'ic_launcher_background.xml'),
+  [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<resources>',
+    '    <color name="ic_launcher_background">#FFDBC7</color>',
+    '</resources>',
+    '',
+  ].join('\n'),
+);
+console.log('Fond de l\'icône adaptive recoloré en pêche (#FFDBC7)');
+
+for (const name of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
+  const adaptiveIconPath = join(resDir, 'mipmap-anydpi-v26', name);
+  const xml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">',
+    '    <background android:drawable="@color/ic_launcher_background"/>',
+    '    <foreground android:drawable="@drawable/ic_launcher_foreground"/>',
+    '    <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>',
+    '</adaptive-icon>',
+    '',
+  ].join('\n');
+  writeFileSync(adaptiveIconPath, xml);
+}
+console.log('mipmap-anydpi-v26/ic_launcher(_round).xml pointés vers l\'icône Mago (+ support icônes thémées)');
+
+const legacyDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
+for (const density of legacyDensities) {
+  const src = join(iconTemplatesDir, 'legacy', `ic_launcher-${density}.png`);
+  for (const name of ['ic_launcher.png', 'ic_launcher_round.png']) {
+    copyFileSync(src, join(resDir, `mipmap-${density}`, name));
+  }
+}
+console.log('Icônes legacy (Android < 8) remplacées pour toutes les densités');
