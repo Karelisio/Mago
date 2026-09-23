@@ -11,7 +11,8 @@ const LAST_CATEGORY_KEY = 'mago:lastItemCategory';
 export function ListDetail() {
   const { id } = useParams<{ id: string }>();
   const listId = id ?? '';
-  const { data: items, isLoading, addItem, toggleCompleted, clearCheckedItems, refetch, isRefetching } = useItems(listId);
+  const { data: items, isLoading, addItem, editItem, toggleCompleted, clearCheckedItems, refetch, isRefetching } =
+    useItems(listId);
   useRealtimeItems(listId);
   const { data: categories } = useItemCategories();
 
@@ -19,6 +20,12 @@ export function ListDetail() {
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('');
   const [category, setCategory] = useState(() => getLocalPref(LAST_CATEGORY_KEY));
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editQty, setEditQty] = useState('');
+  const [editUnit, setEditUnit] = useState('');
+  const [editCategory, setEditCategory] = useState('');
 
   const categoryNames = (categories ?? []).map((c) => c.name);
 
@@ -51,6 +58,29 @@ export function ListDetail() {
     setName('');
     setQty('');
     setUnit('');
+  }
+
+  function startEdit(item: NonNullable<typeof items>[number]) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditQty(item.qty != null ? String(item.qty) : '');
+    setEditUnit(item.unit ?? '');
+    setEditCategory(item.category ?? '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(item: NonNullable<typeof items>[number]) {
+    if (!editName.trim()) return;
+    await editItem(item, {
+      name: editName.trim(),
+      qty: editQty ? Number(editQty) : null,
+      unit: editUnit.trim() || null,
+      category: editCategory || null,
+    });
+    setEditingId(null);
   }
 
   // Rangés par catégorie (ordre alphabétique), le tri par catégorie puis
@@ -101,17 +131,53 @@ export function ListDetail() {
       {sortedGroups.map(([groupName, groupItems]) => (
         <div key={groupName}>
           <h3 style={{ margin: '12px 0 4px', fontSize: 14, color: 'var(--md-on-surface-variant)' }}>{groupName}</h3>
-          {groupItems.map((item) => (
-            <div key={item.id} className={`item-row ${item.completed ? 'completed' : ''}`}>
-              <input type="checkbox" checked={item.completed} onChange={() => toggleCompleted(item)} />
-              <div style={{ flex: 1 }}>
-                <div className="item-name">{item.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
-                  {[item.qty, item.unit].filter(Boolean).join(' ')}
+          {groupItems.map((item) =>
+            editingId === item.id ? (
+              <div key={item.id} className="item-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    placeholder="Article"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    style={{ flex: 2 }}
+                  />
+                  <input placeholder="Qté" value={editQty} onChange={(e) => setEditQty(e.target.value)} style={{ width: 60 }} />
+                  <input
+                    placeholder="Unité"
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    style={{ width: 80 }}
+                  />
+                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                    <option value="">(sans catégorie)</option>
+                    {categoryNames.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn-text" onClick={cancelEdit}>
+                    Annuler
+                  </button>
+                  <button className="btn-primary" onClick={() => saveEdit(item)} disabled={!editName.trim()}>
+                    Enregistrer
+                  </button>
                 </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={item.id} className={`item-row ${item.completed ? 'completed' : ''}`}>
+                <input type="checkbox" checked={item.completed} onChange={() => toggleCompleted(item)} />
+                <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
+                  <div className="item-name">{item.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
+                    {[item.qty, item.unit].filter(Boolean).join(' ')}
+                  </div>
+                </div>
+              </div>
+            ),
+          )}
         </div>
       ))}
 
