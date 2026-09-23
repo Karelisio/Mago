@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLists } from '../hooks/useLists';
 import type { ListType } from '../lib/database.types';
 import { SyncIndicator } from '../components/SyncIndicator';
+import { MagoIcon } from '../components/MagoIcon';
 
 const TYPE_LABELS: Record<ListType, string> = {
   courses: 'Courses',
@@ -28,7 +29,13 @@ export function Lists() {
   return (
     <div>
       <div className="top-bar">
-        <h2>Mes listes</h2>
+        <div className="top-bar-title">
+          <MagoIcon size={28} />
+          <div>
+            <h1>Mago</h1>
+            <p className="top-bar-subtitle">Mes listes</p>
+          </div>
+        </div>
         <SyncIndicator />
       </div>
 
