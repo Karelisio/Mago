@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Lists } from './pages/Lists';
@@ -14,10 +14,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export function App() {
   const { session } = useAuth();
+  const location = useLocation();
+  const isGradientRoute = location.pathname.startsWith('/lists');
 
   return (
     <div className="app-shell">
-      <div className="app-content">
+      <div className={`app-content ${isGradientRoute ? 'gradient-bg' : ''}`}>
         <Routes>
           <Route path="/login" element={session ? <Navigate to="/lists" replace /> : <Login />} />
           <Route

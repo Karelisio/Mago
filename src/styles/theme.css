@@ -68,6 +68,15 @@ button {
   padding-right: max(env(safe-area-inset-right), 16px);
 }
 
+.app-content.gradient-bg {
+  background: linear-gradient(180deg, var(--md-primary-container) 0%, var(--md-surface) 320px);
+}
+
+.gradient-bg .top-bar {
+  border-bottom: none;
+  background: transparent;
+}
+
 .bottom-nav {
   display: flex;
   border-top: 1px solid var(--md-surface-variant);
@@ -96,6 +105,40 @@ button {
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 12px;
+}
+
+.list-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--md-surface);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--md-elevation-1);
+}
+
+.list-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.list-dot.courses {
+  background: var(--md-primary);
+}
+
+.list-dot.diy {
+  background: var(--md-outline);
+}
+
+.list-dot.cadeaux {
+  background: var(--md-on-primary-container);
+}
+
+.list-dot.autre {
+  background: var(--md-on-surface-variant);
 }
 
 .btn-primary {
