@@ -31,16 +31,31 @@ export function useLists() {
   async function createList(name: string, type: ListType) {
     if (!session) return;
     const now = new Date().toISOString();
+    const siblings = (query.data ?? []).filter((l) => l.type === type);
+    const position = siblings.length > 0 ? Math.max(...siblings.map((l) => l.position)) + 1 : 0;
     const newList: ListRow = {
       id: crypto.randomUUID(),
       name,
       type,
+      position,
       owner_id: session.user.id,
       created_at: now,
       updated_at: now,
     };
     patchCache((lists) => [...lists, newList]);
     await enqueue('lists', newList as unknown as Record<string, unknown> & { id: string; updated_at: string });
+  }
+
+  // Échange la position de deux listes du même type (boutons monter/descendre
+  // dans Lists.tsx) — pas de renumérotation globale, juste un swap entre
+  // voisines dans le groupe affiché.
+  async function swapPositions(a: ListRow, b: ListRow) {
+    const now = new Date().toISOString();
+    const updatedA: ListRow = { ...a, position: b.position, updated_at: now };
+    const updatedB: ListRow = { ...b, position: a.position, updated_at: now };
+    patchCache((lists) => lists.map((l) => (l.id === a.id ? updatedA : l.id === b.id ? updatedB : l)));
+    await enqueue('lists', updatedA as unknown as Record<string, unknown> & { id: string; updated_at: string });
+    await enqueue('lists', updatedB as unknown as Record<string, unknown> & { id: string; updated_at: string });
   }
 
   async function renameList(list: ListRow, name: string) {
@@ -58,5 +73,5 @@ export function useLists() {
     }
   }
 
-  return { ...query, createList, renameList, deleteList };
+  return { ...query, createList, renameList, deleteList, swapPositions };
 }

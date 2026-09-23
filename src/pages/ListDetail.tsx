@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { useItems } from '../hooks/useItems';
 import { useRealtimeItems } from '../hooks/useRealtimeItems';
 import { useItemCategories } from '../hooks/useCategories';
+import { getLocalPref, setLocalPref } from '../lib/localPref';
 import { SyncIndicator } from '../components/SyncIndicator';
+
+const LAST_CATEGORY_KEY = 'mago:lastItemCategory';
 
 export function ListDetail() {
   const { id } = useParams<{ id: string }>();
@@ -15,23 +18,35 @@ export function ListDetail() {
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(() => getLocalPref(LAST_CATEGORY_KEY));
 
   const categoryNames = (categories ?? []).map((c) => c.name);
 
+  // La catégorie choisie reste sélectionnée (persistée) jusqu'à changement
+  // volontaire ; on ne retombe sur la première catégorie disponible que si
+  // rien n'est encore choisi ou que le choix persisté n'existe plus.
   useEffect(() => {
-    if (!category && categoryNames.length > 0) setCategory(categoryNames[0]);
+    if (categoryNames.length === 0) return;
+    if (!category || !categoryNames.includes(category)) setCategory(categoryNames[0]);
   }, [category, categoryNames]);
+
+  function handleCategoryChange(value: string) {
+    setCategory(value);
+    setLocalPref(LAST_CATEGORY_KEY, value);
+  }
 
   const hasChecked = (items ?? []).some((i) => i.completed);
 
   async function handleAdd() {
-    if (!name.trim() || !category) return;
+    // La catégorie n'est plus obligatoire : la table item_categories peut
+    // être vidée par l'utilisateur (Réglages) sans que ça bloque l'ajout
+    // d'articles — voir CLAUDE.md.
+    if (!name.trim()) return;
     await addItem({
       name: name.trim(),
       qty: qty ? Number(qty) : null,
       unit: unit.trim() || null,
-      category,
+      category: category || null,
     });
     setName('');
     setQty('');
@@ -60,14 +75,14 @@ export function ListDetail() {
         <input placeholder="Article" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 2 }} />
         <input placeholder="Qté" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 60 }} />
         <input placeholder="Unité" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: 80 }} />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+        <select value={category} onChange={(e) => handleCategoryChange(e.target.value)}>
           {categoryNames.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
         </select>
-        <button className="btn-primary" onClick={handleAdd} disabled={!category}>
+        <button className="btn-primary" onClick={handleAdd} disabled={!name.trim()}>
           Ajouter
         </button>
       </div>

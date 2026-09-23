@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ en thème sombre : "night" ayant priorité sur "v31" seul dans
+     la résolution Android (values-v31/widget_colors.xml ne s'applique qu'en
+     thème clair), il faut le qualificatif combiné values-night-v31 pour que
+     le dynamique s'applique aussi en sombre. Tons choisis pour matcher le
+     mapping dark de DynamicColorPlugin.kt (primaryContainer = accent1_700,
+     onPrimaryContainer = accent1_100, surfaceVariant = neutral2_700,
+     onSurfaceVariant = neutral2_200). -->
+<resources>
+    <color name="widget_on_surface">@android:color/system_neutral1_100</color>
+    <color name="widget_on_surface_variant">@android:color/system_neutral2_200</color>
+    <color name="widget_gradient_start">@android:color/system_accent1_700</color>
+    <color name="widget_gradient_end">@android:color/system_neutral1_900</color>
+</resources>

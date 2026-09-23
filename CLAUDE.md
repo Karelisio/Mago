@@ -81,6 +81,21 @@ dédié (un script par concern, pas un fourre-tout).
   `useRealtimeItems.ts` compte les références par `listId` pour n'ouvrir
   qu'un seul abonnement réel, quel que soit le nombre de composants montés
   dessus.
+- **Qualificatifs de ressource combinés** : `values-v31/` (Android 12+) ne
+  s'applique **qu'en thème clair** — `values-night/` (qualificatif "night"
+  seul) est plus spécifique et gagne en thème sombre. Pour du contenu
+  dynamique Android 12+ qui doit aussi s'appliquer en sombre, il faut un
+  dossier combiné `values-night-v31/` (ordre imposé : night avant version).
+  Vécu avec les couleurs du widget (`widget_colors_v31.xml`) : le dégradé
+  Material dynamique ne s'affichait qu'en thème clair, jamais en sombre.
+- **Ne jamais bloquer une action sur une table de catégories vidable par
+  l'utilisateur** : `list_categories`/`item_categories` sont gérées par
+  l'utilisateur (Réglages, suppression possible). Rendre une action (ajouter
+  un article, créer une liste) `disabled` tant qu'aucune catégorie n'est
+  sélectionnée revient à bloquer totalement l'app si l'utilisateur vide la
+  table concernée — vécu en prod (plus moyen d'ajouter le moindre article).
+  La catégorie doit rester optionnelle sur l'action elle-même (null en
+  base), seul le confort de présélection en dépend.
 
 ## Widget écran d'accueil (Phase 5)
 
@@ -118,6 +133,12 @@ une vraie app multi-tenant voudrait ça, ce serait de la sur-ingénierie ici).
 La couleur d'une catégorie (`.list-dot`) est calculée par hash du nom
 (`categoryTone()`), pas par une classe CSS fixe par valeur — voir
 `theme.css` (`.list-dot.tone-0` à `.tone-5`).
+
+Les listes sont groupées par type (une section par type, plusieurs listes
+possibles par section) et triées dans chaque section par `lists.position`
+(pas par nom) : les boutons monter/descendre de `Lists.tsx` échangent la
+position de deux listes voisines du même type via `useLists.ts#swapPositions`
+— pas de renumérotation globale à chaque déplacement.
 
 ## Git
 
