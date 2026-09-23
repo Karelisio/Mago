@@ -71,6 +71,16 @@ dédié (un script par concern, pas un fourre-tout).
   Supabase Dashboard → Edge Functions → Secrets). Si un fichier sensible
   est quand même envoyé dans le chat, le traiter (ex. l'encoder en base64)
   sans le reformuler plus que nécessaire.
+- **`supabase.channel(topic)` réutilise le canal existant** : si deux hooks
+  s'abonnent au même topic Realtime (même table/id), le second reçoit le
+  même objet `RealtimeChannel` que le premier au lieu d'un nouveau — un
+  second `.on(...)` dessus lève une exception ("cannot add ... callbacks
+  ... after subscribe()"), fatale sans `ErrorBoundary` (app entièrement
+  démontée, écran blanc — vécu en prod avec `useWidgetSync` +
+  `ListDetail` s'abonnant tous deux à `items:<listId>` pour la même liste).
+  `useRealtimeItems.ts` compte les références par `listId` pour n'ouvrir
+  qu'un seul abonnement réel, quel que soit le nombre de composants montés
+  dessus.
 
 ## Widget écran d'accueil (Phase 5)
 
