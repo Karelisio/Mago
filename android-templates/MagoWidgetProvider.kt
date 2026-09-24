@@ -17,8 +17,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-// Widget écran d'accueil (une seule liste fixe pour la v1, la plus ancienne
-// — voir Lists.tsx/useLists.ts qui trie par created_at). Se redessine depuis
+// Widget écran d'accueil (jusqu'à 20 articles — rowIds/textIds/checkIds et
+// res/layout/widget_list_glance.xml doivent rester alignés sur ce nombre ;
+// une seule liste fixe pour la v1, la plus ancienne — voir Lists.tsx/
+// useLists.ts qui trie par created_at). Se redessine depuis
 // le dernier aperçu reçu par MagoFcmService ou par WidgetBridgePlugin (mis
 // en cache dans les SharedPreferences "mago_widget"), et à intervalle
 // régulier via updatePeriodMillis (secours seulement — voir
@@ -138,20 +140,50 @@ class MagoWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_list_glance)
             val snapshotRaw = prefs.getString(KEY_SNAPSHOT, null)
 
-            val rowIds = intArrayOf(R.id.widget_item_1, R.id.widget_item_2, R.id.widget_item_3, R.id.widget_item_4, R.id.widget_item_5)
+            val rowIds = intArrayOf(R.id.widget_item_1, R.id.widget_item_2, R.id.widget_item_3, R.id.widget_item_4, R.id.widget_item_5, R.id.widget_item_6, R.id.widget_item_7, R.id.widget_item_8, R.id.widget_item_9, R.id.widget_item_10, R.id.widget_item_11, R.id.widget_item_12, R.id.widget_item_13, R.id.widget_item_14, R.id.widget_item_15, R.id.widget_item_16, R.id.widget_item_17, R.id.widget_item_18, R.id.widget_item_19, R.id.widget_item_20)
             val textIds = intArrayOf(
                 R.id.widget_item_text_1,
                 R.id.widget_item_text_2,
                 R.id.widget_item_text_3,
                 R.id.widget_item_text_4,
-                R.id.widget_item_text_5
+                R.id.widget_item_text_5,
+                R.id.widget_item_text_6,
+                R.id.widget_item_text_7,
+                R.id.widget_item_text_8,
+                R.id.widget_item_text_9,
+                R.id.widget_item_text_10,
+                R.id.widget_item_text_11,
+                R.id.widget_item_text_12,
+                R.id.widget_item_text_13,
+                R.id.widget_item_text_14,
+                R.id.widget_item_text_15,
+                R.id.widget_item_text_16,
+                R.id.widget_item_text_17,
+                R.id.widget_item_text_18,
+                R.id.widget_item_text_19,
+                R.id.widget_item_text_20
             )
             val checkIds = intArrayOf(
                 R.id.widget_item_check_1,
                 R.id.widget_item_check_2,
                 R.id.widget_item_check_3,
                 R.id.widget_item_check_4,
-                R.id.widget_item_check_5
+                R.id.widget_item_check_5,
+                R.id.widget_item_check_6,
+                R.id.widget_item_check_7,
+                R.id.widget_item_check_8,
+                R.id.widget_item_check_9,
+                R.id.widget_item_check_10,
+                R.id.widget_item_check_11,
+                R.id.widget_item_check_12,
+                R.id.widget_item_check_13,
+                R.id.widget_item_check_14,
+                R.id.widget_item_check_15,
+                R.id.widget_item_check_16,
+                R.id.widget_item_check_17,
+                R.id.widget_item_check_18,
+                R.id.widget_item_check_19,
+                R.id.widget_item_check_20
             )
 
             if (snapshotRaw == null) {

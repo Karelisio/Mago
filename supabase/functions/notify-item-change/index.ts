@@ -14,6 +14,11 @@ interface Payload {
   actor_id: string;
 }
 
+// Doit rester identique à WIDGET_MAX_ITEMS dans useWidgetSync.ts (chemin
+// app ouverte) et au nombre de lignes de res/layout/widget_list_glance.xml
+// / MagoWidgetProvider.kt (rowIds).
+const WIDGET_MAX_ITEMS = 20;
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -83,7 +88,7 @@ Deno.serve(async (req) => {
       list_name: list?.name ?? '',
       user_id,
       total,
-      items: remaining.slice(0, 5),
+      items: remaining.slice(0, WIDGET_MAX_ITEMS),
     };
     const data = { snapshot: JSON.stringify(snapshot) };
     const result = await sendFcmDataMessage(serviceAccount, projectId, fcm_token, data, payload.list_id);

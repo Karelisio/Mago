@@ -19,6 +19,12 @@ import { WidgetBridge } from '../lib/widgetBridge';
 // tel quel à la queue de sync hors-ligne existante (voir offlineQueue.ts),
 // synchronisée normalement par SyncContext à la prochaine ouverture — pas
 // besoin d'un jeton d'accès natif pour écrire depuis le widget.
+//
+// WIDGET_MAX_ITEMS doit rester identique à notify-item-change/index.ts
+// (chemin FCM, app fermée) et au nombre de lignes de
+// res/layout/widget_list_glance.xml / MagoWidgetProvider.kt (rowIds).
+const WIDGET_MAX_ITEMS = 20;
+
 export function useWidgetSync() {
   const { session } = useAuth();
   const { data: lists } = useLists();
@@ -42,7 +48,7 @@ export function useWidgetSync() {
       list_name: firstList.name,
       user_id: session.user.id,
       total: items.length,
-      items: remaining.slice(0, 5),
+      items: remaining.slice(0, WIDGET_MAX_ITEMS),
     }).catch(() => {
       // Best-effort : le widget reste sur son dernier snapshot connu.
     });

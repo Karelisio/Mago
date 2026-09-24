@@ -77,4 +77,169 @@
         <ImageView android:id="@+id/widget_item_check_5" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
         <TextView android:id="@+id/widget_item_text_5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
     </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_6" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_7" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_8" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_8" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_9"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_9" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_9" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_10"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_10" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_10" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_11"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_11" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_11" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_12"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_12" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_12" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_13"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_13" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_13" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_14"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_14" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_14" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_15"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_15" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_15" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_16"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_16" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_16" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_17"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_17" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_17" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_18"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_18" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_18" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_19"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_19" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_19" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_item_20"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+        <ImageView android:id="@+id/widget_item_check_20" android:layout_width="20dp" android:layout_height="20dp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_item_text_20" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/widget_on_surface" android:textSize="13sp" />
+    </LinearLayout>
 </LinearLayout>
