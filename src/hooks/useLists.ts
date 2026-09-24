@@ -28,7 +28,7 @@ export function useLists() {
     queryClient.setQueryData<ListRow[]>(LISTS_KEY, (old) => updater(old ?? []));
   }
 
-  async function createList(name: string, type: ListType) {
+  async function createList(name: string, type: ListType, isPrivate = false) {
     if (!session) return;
     const now = new Date().toISOString();
     const siblings = (query.data ?? []).filter((l) => l.type === type);
@@ -38,6 +38,7 @@ export function useLists() {
       name,
       type,
       position,
+      is_private: isPrivate,
       owner_id: session.user.id,
       created_at: now,
       updated_at: now,
