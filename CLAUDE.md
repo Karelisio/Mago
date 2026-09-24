@@ -123,6 +123,13 @@ dédié (un script par concern, pas un fourre-tout).
 - Push FCM **data-only** (pas de clé `notification`) : réveil silencieux,
   pas de popup système, pas de permission `POST_NOTIFICATIONS` (Android 13+)
   à demander.
+- Jusqu'à **20 articles** affichés (`WIDGET_MAX_ITEMS`, dupliqué dans
+  `useWidgetSync.ts` et `notify-item-change/index.ts` — pas de constante
+  partagée entre l'app et l'Edge Function). Le layout RemoteViews
+  (`widget_list_glance.xml`) a 20 lignes fixes (pas de `ListView`/
+  `RemoteViewsService`) : changer ce nombre veut dire régénérer ce fichier
+  et les tableaux `rowIds`/`textIds`/`checkIds` de `MagoWidgetProvider.kt`
+  en même temps.
 
 ## Catégories (listes et articles)
 
