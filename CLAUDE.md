@@ -140,6 +140,14 @@ possibles par section) et triées dans chaque section par `lists.position`
 position de deux listes voisines du même type via `useLists.ts#swapPositions`
 — pas de renumérotation globale à chaque déplacement.
 
+`lists.is_private` (choix à la création, `Lists.tsx`) : quand une liste est
+privée, `add_owner_as_member()` n'ajoute pas le partenaire comme membre
+(seul le propriétaire l'est) — le jumelage n'est donc plus "tout ou rien",
+sans toucher aux policies RLS (`lists_select` repose déjà sur
+`is_list_member`/`list_members`). Le partage ponctuel d'une liste précise
+(`invites`, indépendant du jumelage) reste possible même sur une liste
+privée.
+
 ## Git
 
 Cette branche (`claude/mago-shared-list-app-65gd2s`) est réutilisée d'une PR

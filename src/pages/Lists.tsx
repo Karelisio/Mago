@@ -15,6 +15,7 @@ export function Lists() {
   const [filter, setFilter] = useState<string>('all');
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState(() => getLocalPref(LAST_TYPE_KEY));
+  const [shared, setShared] = useState(true);
 
   const categoryNames = (categories ?? []).map((c) => c.name);
   const effectiveNewType = newType || categoryNames[0] || '';
@@ -49,7 +50,7 @@ export function Lists() {
 
   async function handleCreate() {
     if (!newName.trim() || !effectiveNewType) return;
-    await createList(newName.trim(), effectiveNewType);
+    await createList(newName.trim(), effectiveNewType, !shared);
     setNewName('');
   }
 
@@ -99,6 +100,21 @@ export function Lists() {
         </button>
       </div>
 
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: -12,
+          marginBottom: 20,
+          fontSize: 13,
+          color: 'var(--md-on-surface-variant)',
+        }}
+      >
+        <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
+        Partager avec mon/ma partenaire
+      </label>
+
       {isLoading && <p>Chargement…</p>}
 
       {sortedGroups.map(([type, groupLists]) => (
@@ -109,6 +125,9 @@ export function Lists() {
               <span className={`list-dot tone-${categoryTone(list.type)}`} />
               <Link to={`/lists/${list.id}`} style={{ color: 'inherit', textDecoration: 'none', flex: 1 }}>
                 <strong>{list.name}</strong>
+                {list.is_private && (
+                  <span style={{ fontSize: 12, color: 'var(--md-on-surface-variant)', marginLeft: 6 }}>🔒 privée</span>
+                )}
               </Link>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <button

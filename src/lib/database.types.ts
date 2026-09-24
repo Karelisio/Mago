@@ -13,6 +13,7 @@ export interface ListRow {
   name: string;
   type: ListType;
   position: number;
+  is_private: boolean;
   owner_id: string;
   created_at: string;
   updated_at: string;
