@@ -45,6 +45,7 @@ export function useLists() {
     };
     patchCache((lists) => [...lists, newList]);
     await enqueue('lists', newList as unknown as Record<string, unknown> & { id: string; updated_at: string });
+    return newList;
   }
 
   // Échange la position de deux listes du même type (boutons monter/descendre

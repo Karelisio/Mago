@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run unit tests
+        run: npm test
+
       - name: Compute release version
         id: version
         run: |
@@ -57,7 +60,7 @@ jobs:
       - name: Configure Firebase (google-services.json)
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
 
-      - name: Configure magic link deep link
+      - name: Configure deep links (lien magique + import mago://import)
         run: node scripts/patch-android-deeplink.mjs
 
       - name: Configure permission de mise à jour in-app
