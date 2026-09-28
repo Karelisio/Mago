@@ -34,6 +34,8 @@ export interface ItemRow {
   qty: number | null;
   unit: string | null;
   category: string | null;
+  note: string | null;
+  recipe_title: string | null;
   completed: boolean;
   is_relevant: boolean;
   added_by: string;

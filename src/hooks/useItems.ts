@@ -4,8 +4,20 @@ import type { ItemRow } from '../lib/database.types';
 import { useSync } from '../contexts/SyncContext';
 import { useAuth } from '../contexts/AuthContext';
 
-function itemsKey(listId: string) {
+export function itemsKey(listId: string) {
   return ['items', listId] as const;
+}
+
+export async function fetchItems(listId: string) {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('list_id', listId)
+    .eq('is_relevant', true)
+    .order('category', { ascending: true, nullsFirst: false })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data as ItemRow[];
 }
 
 export function useItems(listId: string) {
@@ -15,17 +27,7 @@ export function useItems(listId: string) {
 
   const query = useQuery({
     queryKey: itemsKey(listId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('list_id', listId)
-        .eq('is_relevant', true)
-        .order('category', { ascending: true, nullsFirst: false })
-        .order('name', { ascending: true });
-      if (error) throw error;
-      return data as ItemRow[];
-    },
+    queryFn: () => fetchItems(listId),
     enabled: !!session && !!listId,
   });
 
@@ -43,6 +45,8 @@ export function useItems(listId: string) {
       qty: input.qty,
       unit: input.unit,
       category: input.category,
+      note: null,
+      recipe_title: null,
       completed: false,
       is_relevant: true,
       added_by: session.user.id,

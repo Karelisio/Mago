@@ -17,6 +17,28 @@ Application de listes partagées (courses, DIY, cadeaux…) pour un couple, avec
 - Couleurs Material You dynamiques (Android 12+), dérivées du fond d'écran.
 - Widget écran d'accueil affichant la liste la plus ancienne, avec cases à cocher fonctionnelles (cocher depuis le widget fonctionne même app fermée, voir `CLAUDE.md`).
 - Mise à jour de l'app directement depuis l'app (téléchargement + installation de l'APK, sans passer par un store).
+- Import d'articles depuis une autre app via deep link `mago://import` (voir ci-dessous), avec écran de confirmation, fusion des quantités et annulation.
+
+## Import externe (`mago://import`)
+
+Une autre app (ex. une app de recettes) peut envoyer des articles à Mago en ouvrant :
+
+```
+mago://import?data=<base64url du JSON>
+```
+
+```json
+{
+  "version": 1,
+  "source": "Mes Recettes",
+  "listName": "Courses",
+  "items": [
+    { "name": "Tomates", "quantity": 3, "unit": null, "category": "Légumes", "note": null, "recipeTitle": "Ratatouille" }
+  ]
+}
+```
+
+`version` (1), `source` et `items` (1 à 300) sont obligatoires ; `listName`, `quantity` (nombre > 0), `unit`, `category`, `note` et `recipeTitle` sont optionnels. Un payload invalide est refusé avec un message. Sans `listName` existant, Mago propose de créer la liste. Pour construire un lien : `buildImportUrl(payload)` dans `src/lib/externalImport.ts`.
 
 ## Démarrage
 
@@ -24,6 +46,7 @@ Application de listes partagées (courses, DIY, cadeaux…) pour un couple, avec
 npm install
 cp .env.example .env   # à créer avec VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 npm run dev            # app web (utile pour itérer sur l'UI, le natif ne s'y active pas)
+npm test               # tests unitaires (vitest)
 ```
 
 ### Variables d'environnement

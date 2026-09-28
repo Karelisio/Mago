@@ -155,6 +155,25 @@ sans toucher aux policies RLS (`lists_select` repose déjà sur
 (`invites`, indépendant du jumelage) reste possible même sur une liste
 privée.
 
+## Imports externes (`mago://import`)
+
+- Lien `mago://import?data=<base64url(JSON)>` (ou payload en dernier segment
+  de chemin), format et validation zod dans `src/lib/externalImport.ts` —
+  module pur, testé par `externalImport.test.ts` (`npm test`, lancé aussi en
+  CI avant le build). Sur le web : `/import?data=…` pour tester.
+- Réception dans `ImportContext` : `App.getLaunchUrl()` (démarrage à froid)
+  + `appUrlOpen` (app déjà ouverte, activité `singleTask`) ; un doublon de la
+  même URL dans les 3 s est ignoré. Le listener de `AuthContext` reçoit aussi
+  ces URL et les ignore (pas de tokens) — et inversement.
+- Écritures via la file de sync (`useApplyImport.ts`) : marche hors ligne.
+  Fusion = même nom + même unité (casse/accents ignorés), seulement avec un
+  article non coché. Annuler = soft-delete des ajouts + restauration des
+  lignes fusionnées ; si l'import avait créé la liste, `SyncContext.discard`
+  retire les écritures encore en attente puis la liste est supprimée.
+- Réglage "Importer sans confirmer" : n'agit que si listes et types de liste
+  sont chargés, sinon retombe sur l'écran de confirmation (pas de doublon de
+  liste créé à l'aveugle).
+
 ## Git
 
 Cette branche (`claude/mago-shared-list-app-65gd2s`) est réutilisée d'une PR

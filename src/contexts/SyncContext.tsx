@@ -11,6 +11,7 @@ interface SyncContextValue {
   status: SyncStatus;
   pendingCount: number;
   enqueue: (table: QueueTable, row: QueueEntry['row']) => Promise<void>;
+  discard: (targets: { table: QueueTable; id: string }[]) => Promise<Set<string>>;
   flush: () => Promise<void>;
   resetQueue: () => Promise<void>;
 }
@@ -74,6 +75,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (navigator.onLine) {
       void flush();
     }
+  }
+
+  // Retire des écritures encore en attente (jamais envoyées au serveur) ;
+  // renvoie les ids effectivement retirés, pour que l'appelant sache ce qui
+  // avait déjà été synchronisé.
+  async function discard(targets: { table: QueueTable; id: string }[]) {
+    const before = await readQueue();
+    const removed = new Set<string>();
+    let next = before;
+    for (const { table, id } of targets) {
+      if (!before.some((q) => q.table === table && q.row.id === id)) continue;
+      next = await removeEntry(table, id);
+      removed.add(id);
+    }
+    setQueue(next);
+    return removed;
   }
 
   async function flush() {
@@ -157,7 +174,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const status: SyncStatus = !isOnline ? 'offline' : queue.length > 0 ? 'pending' : 'synced';
 
   return (
-    <SyncContext.Provider value={{ status, pendingCount: queue.length, enqueue, flush, resetQueue }}>
+    <SyncContext.Provider value={{ status, pendingCount: queue.length, enqueue, discard, flush, resetQueue }}>
       {children}
     </SyncContext.Provider>
   );

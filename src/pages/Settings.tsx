@@ -6,6 +6,7 @@ import { usePartnership } from '../hooks/usePartnership';
 import { useListCategories, useItemCategories } from '../hooks/useCategories';
 import { useWidgetListId, setWidgetListId } from '../hooks/useWidgetListPref';
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme';
+import { getLocalPref, setLocalPref, IMPORT_AUTO_CONFIRM_KEY } from '../lib/localPref';
 import { MagoIcon } from '../components/MagoIcon';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 
@@ -35,6 +36,28 @@ function ThemePicker() {
           {THEME_LABELS[p]}
         </button>
       ))}
+    </div>
+  );
+}
+
+function ImportPrefs() {
+  const [autoConfirm, setAutoConfirm] = useState(() => getLocalPref(IMPORT_AUTO_CONFIRM_KEY) === '1');
+
+  function toggle(value: boolean) {
+    setAutoConfirm(value);
+    setLocalPref(IMPORT_AUTO_CONFIRM_KEY, value ? '1' : '');
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="checkbox" checked={autoConfirm} onChange={(e) => toggle(e.target.checked)} />
+        Importer sans confirmer
+      </label>
+      <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)', margin: 0 }}>
+        Les articles envoyés par une autre app (lien mago://import) sont ajoutés directement à la liste
+        demandée, fusionnés avec l'existant. Un bouton « Annuler » reste proposé juste après.
+      </p>
     </div>
   );
 }
@@ -160,6 +183,9 @@ export function Settings() {
           ))}
         </select>
       </div>
+
+      <h3>Import</h3>
+      <ImportPrefs />
 
       <h3>Catégories de listes</h3>
       <CategoryManager

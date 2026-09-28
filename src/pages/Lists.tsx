@@ -3,18 +3,16 @@ import { Link } from 'react-router-dom';
 import { useLists } from '../hooks/useLists';
 import { useListCategories } from '../hooks/useCategories';
 import { categoryTone } from '../lib/categoryTone';
-import { getLocalPref, setLocalPref } from '../lib/localPref';
+import { getLocalPref, setLocalPref, LAST_LIST_TYPE_KEY } from '../lib/localPref';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { MagoIcon } from '../components/MagoIcon';
-
-const LAST_TYPE_KEY = 'mago:lastListType';
 
 export function Lists() {
   const { data: lists, isLoading, createList, deleteList, swapPositions, refetch, isRefetching } = useLists();
   const { data: categories } = useListCategories();
   const [filter, setFilter] = useState<string>('all');
   const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState(() => getLocalPref(LAST_TYPE_KEY));
+  const [newType, setNewType] = useState(() => getLocalPref(LAST_LIST_TYPE_KEY));
   const [shared, setShared] = useState(true);
 
   const categoryNames = (categories ?? []).map((c) => c.name);
@@ -30,7 +28,7 @@ export function Lists() {
 
   function handleTypeChange(value: string) {
     setNewType(value);
-    setLocalPref(LAST_TYPE_KEY, value);
+    setLocalPref(LAST_LIST_TYPE_KEY, value);
   }
 
   const filtered = (lists ?? []).filter((l) => filter === 'all' || l.type === filter);

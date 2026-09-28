@@ -172,7 +172,9 @@ export function ListDetail() {
                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
                   <div className="item-name">{item.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
-                    {[item.qty, item.unit].filter(Boolean).join(' ')}
+                    {[[item.qty, item.unit].filter(Boolean).join(' '), item.recipe_title, item.note]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </div>
                 </div>
               </div>

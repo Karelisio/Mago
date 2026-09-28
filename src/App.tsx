@@ -6,6 +6,8 @@ import { Login } from './pages/Login';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
 import { Settings } from './pages/Settings';
+import { ImportHost } from './components/ImportSheet';
+import { Snackbar } from './components/Snackbar';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -53,6 +55,8 @@ export function App() {
           <Route path="*" element={<Navigate to={session ? '/lists' : '/login'} replace />} />
         </Routes>
       </div>
+      {session && <ImportHost />}
+      <Snackbar />
       {session && (
         <nav className="bottom-nav">
           <NavLink to="/lists" className={({ isActive }) => (isActive ? 'active' : '')}>
