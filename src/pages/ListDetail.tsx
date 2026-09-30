@@ -4,6 +4,7 @@ import { useItems } from '../hooks/useItems';
 import { useRealtimeItems } from '../hooks/useRealtimeItems';
 import { useItemCategories } from '../hooks/useCategories';
 import { getLocalPref, setLocalPref } from '../lib/localPref';
+import { formatQuantityInput, parseQuantity } from '../lib/quantity';
 import { SyncIndicator } from '../components/SyncIndicator';
 
 const LAST_CATEGORY_KEY = 'mago:lastItemCategory';
@@ -43,15 +44,19 @@ export function ListDetail() {
   }
 
   const hasChecked = (items ?? []).some((i) => i.completed);
+  // « 1,5 » (clavier français) accepté ; une saisie illisible bloque l'envoi
+  // avec un message au lieu d'enregistrer silencieusement une quantité vide.
+  const qtyInput = parseQuantity(qty);
+  const editQtyInput = parseQuantity(editQty);
 
   async function handleAdd() {
     // La catégorie n'est plus obligatoire : la table item_categories peut
     // être vidée par l'utilisateur (Réglages) sans que ça bloque l'ajout
     // d'articles — voir CLAUDE.md.
-    if (!name.trim()) return;
+    if (!name.trim() || !qtyInput.ok) return;
     await addItem({
       name: name.trim(),
-      qty: qty ? Number(qty) : null,
+      qty: qtyInput.value,
       unit: unit.trim() || null,
       category: category || null,
     });
@@ -63,7 +68,7 @@ export function ListDetail() {
   function startEdit(item: NonNullable<typeof items>[number]) {
     setEditingId(item.id);
     setEditName(item.name);
-    setEditQty(item.qty != null ? String(item.qty) : '');
+    setEditQty(formatQuantityInput(item.qty));
     setEditUnit(item.unit ?? '');
     setEditCategory(item.category ?? '');
   }
@@ -73,10 +78,10 @@ export function ListDetail() {
   }
 
   async function saveEdit(item: NonNullable<typeof items>[number]) {
-    if (!editName.trim()) return;
+    if (!editName.trim() || !editQtyInput.ok) return;
     await editItem(item, {
       name: editName.trim(),
-      qty: editQty ? Number(editQty) : null,
+      qty: editQtyInput.value,
       unit: editUnit.trim() || null,
       category: editCategory || null,
     });
@@ -103,7 +108,15 @@ export function ListDetail() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <input placeholder="Article" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 2 }} />
-        <input placeholder="Qté" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: 60 }} />
+        <input
+          placeholder="Qté"
+          inputMode="decimal"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          aria-invalid={!qtyInput.ok}
+          className={qtyInput.ok ? undefined : 'input-error'}
+          style={{ width: 60 }}
+        />
         <input placeholder="Unité" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: 80 }} />
         <select value={category} onChange={(e) => handleCategoryChange(e.target.value)}>
           {categoryNames.map((c) => (
@@ -112,9 +125,10 @@ export function ListDetail() {
             </option>
           ))}
         </select>
-        <button className="btn-primary" onClick={handleAdd} disabled={!name.trim()}>
+        <button className="btn-primary" onClick={handleAdd} disabled={!name.trim() || !qtyInput.ok}>
           Ajouter
         </button>
+        {!qtyInput.ok && <p className="field-error">Quantité invalide (ex. 2 ou 1,5)</p>}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -141,7 +155,15 @@ export function ListDetail() {
                     onChange={(e) => setEditName(e.target.value)}
                     style={{ flex: 2 }}
                   />
-                  <input placeholder="Qté" value={editQty} onChange={(e) => setEditQty(e.target.value)} style={{ width: 60 }} />
+                  <input
+                    placeholder="Qté"
+                    inputMode="decimal"
+                    value={editQty}
+                    onChange={(e) => setEditQty(e.target.value)}
+                    aria-invalid={!editQtyInput.ok}
+                    className={editQtyInput.ok ? undefined : 'input-error'}
+                    style={{ width: 60 }}
+                  />
                   <input
                     placeholder="Unité"
                     value={editUnit}
@@ -156,12 +178,17 @@ export function ListDetail() {
                       </option>
                     ))}
                   </select>
+                  {!editQtyInput.ok && <p className="field-error">Quantité invalide (ex. 2 ou 1,5)</p>}
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button className="btn-text" onClick={cancelEdit}>
                     Annuler
                   </button>
-                  <button className="btn-primary" onClick={() => saveEdit(item)} disabled={!editName.trim()}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => saveEdit(item)}
+                    disabled={!editName.trim() || !editQtyInput.ok}
+                  >
                     Enregistrer
                   </button>
                 </div>
@@ -172,7 +199,7 @@ export function ListDetail() {
                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
                   <div className="item-name">{item.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--md-on-surface-variant)' }}>
-                    {[[item.qty, item.unit].filter(Boolean).join(' '), item.recipe_title, item.note]
+                    {[[formatQuantityInput(item.qty), item.unit].filter(Boolean).join(' '), item.recipe_title, item.note]
                       .filter(Boolean)
                       .join(' · ')}
                   </div>

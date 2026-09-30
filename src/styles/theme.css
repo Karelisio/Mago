@@ -453,3 +453,15 @@ select {
   color: var(--md-error);
   font-weight: 600;
 }
+
+/* Saisie refusée (ex. quantité illisible) : message sous le champ. */
+input.input-error {
+  border-color: var(--md-error);
+}
+
+.field-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--md-error);
+}
