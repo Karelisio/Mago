@@ -14,6 +14,7 @@ export function usePartnership() {
         .from('partnerships')
         .select('*')
         .or(`user_a.eq.${session!.user.id},user_b.eq.${session!.user.id}`)
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as PartnershipRow | null;
@@ -30,6 +31,10 @@ export function usePartnership() {
         .eq('from_user', session!.user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
+        // Plusieurs invitations en attente possibles (renvoyée, autre email) :
+        // sans limit(1), maybeSingle() échoue (PGRST116) et l'état « en
+        // attente » disparaissait.
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as PartnerInviteRow | null;
@@ -54,7 +59,13 @@ export function usePartnership() {
 
   async function sendPartnerInvite(toEmail: string) {
     const { error } = await supabase.rpc('send_partner_invite', { to_email: toEmail.trim().toLowerCase() });
-    if (!error) void queryClient.invalidateQueries({ queryKey: ['partner_invites', 'sent'] });
+    if (!error) {
+      // Si l'autre nous avait déjà invité·e, le serveur accepte directement
+      // son invitation (migration 0010) : jumelage créé et listes partagées.
+      void queryClient.invalidateQueries({ queryKey: ['partner_invites'] });
+      void queryClient.invalidateQueries({ queryKey: ['partnership'] });
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    }
     return { error: error?.message ?? null };
   }
 
