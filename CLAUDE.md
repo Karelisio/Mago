@@ -307,6 +307,17 @@ réinsérée par `flush()` (liste ressuscitée).
   appliqué pendant un import sans confirmation (`ImportHost` relance son
   effet à la fin de chaque import automatique).
 
+## Mise à jour in-app, barre d'état
+
+- `useAppUpdate.ts` ne propose une release que si son tag est **plus
+  récent** (`version.ts` : tags `v<package.json>-<n° de run CI>` comparés
+  numériquement partie par partie, n° de build compris) — un simple `!==`
+  proposait aussi une version plus ancienne. `ApkInstallerPlugin` pose des
+  délais de connexion (15 s) et de lecture (30 s).
+- Icônes de la barre d'état (`statusBar.ts`) : style selon le thème
+  **effectif** (préférence de Réglages, sinon système), réappliqué à chaque
+  changement de l'un ou de l'autre.
+
 ## Git
 
 Cette branche (`claude/mago-shared-list-app-65gd2s`) est réutilisée d'une PR

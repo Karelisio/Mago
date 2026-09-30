@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { registerPlugin, Capacitor } from '@capacitor/core';
+import { isNewerVersion } from '../lib/version';
 
 interface ApkInstallerPlugin {
   downloadAndInstall(options: { url: string }): Promise<void>;
@@ -31,7 +32,9 @@ export function useAppUpdate() {
       if (!res.ok) throw new Error(`GitHub a répondu ${res.status}`);
       const data = await res.json();
       const apkAsset = (data.assets ?? []).find((a: { name: string }) => a.name === 'app-release.apk');
-      if (data.tag_name && data.tag_name !== CURRENT_VERSION && apkAsset) {
+      // Comparaison numérique (voir version.ts) : un simple !== proposait
+      // aussi une release plus ancienne que la version installée.
+      if (data.tag_name && isNewerVersion(data.tag_name, CURRENT_VERSION) && apkAsset) {
         setLatest({ tag: data.tag_name, changelog: data.body ?? '', apkUrl: apkAsset.browser_download_url });
       } else {
         setLatest(null);

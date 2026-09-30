@@ -33,6 +33,10 @@ class ApkInstallerPlugin : Plugin() {
                 val destFile = File(context.cacheDir, "mago-update.apk")
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.instanceFollowRedirects = true
+                // Sans délais, une connexion bloquée (réseau perdu en cours de
+                // route) laissait « Téléchargement… » affiché indéfiniment.
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
                 connection.connect()
 
                 if (connection.responseCode !in 200..299) {
