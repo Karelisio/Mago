@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
-  const { signInWithMagicLink } = useAuth();
+  const { signInWithMagicLink, linkError } = useAuth();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +24,18 @@ export function Login() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', padding: 24 }}>
       <h1 style={{ color: 'var(--md-primary)' }}>Mago</h1>
+      {linkError && (
+        <p role="alert" style={{ color: 'var(--md-error)' }}>
+          {linkError}
+        </p>
+      )}
       {sent ? (
-        <p>Un lien de connexion a été envoyé à <strong>{email}</strong>. Vérifie ta boîte mail.</p>
+        <>
+          <p>Un lien de connexion a été envoyé à <strong>{email}</strong>. Vérifie ta boîte mail.</p>
+          <button className="btn-text" style={{ alignSelf: 'flex-start' }} onClick={() => setSent(false)}>
+            Demander un nouveau lien
+          </button>
+        </>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label htmlFor="email">Adresse email</label>

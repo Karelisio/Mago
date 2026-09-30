@@ -4,7 +4,9 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { AUTH_CALLBACK_URL, extractSessionTokensFromUrl } from '../lib/deeplink';
+import { AUTH_CALLBACK_URL, isPendingLoginFresh, parseAuthCallbackUrl, type AuthCallback } from '../lib/deeplink';
+import { createLinkGate, linkKey, rememberLink } from '../lib/handledLinks';
+import { getLocalPref, PENDING_LOGIN_KEY, setLocalPref } from '../lib/localPref';
 import { clearQueue } from '../lib/offlineQueue';
 import { PushToken } from '../lib/pushToken';
 import { WidgetBridge } from '../lib/widgetBridge';
@@ -15,9 +17,41 @@ interface AuthContextValue {
   loading: boolean;
   signInWithMagicLink: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
+  // Échec d'un lien de connexion ouvert dans l'app (affiché par Login).
+  linkError: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const LOGIN_LINK_ERROR =
+  'Ce lien de connexion ne fonctionne pas ici : il a expiré, a déjà servi, ou a été ouvert sur un autre appareil ' +
+  'que celui qui l’a demandé. Demande un nouveau lien depuis ce téléphone.';
+
+// Retour du lien magique (deep link com.karelisio.mago://login-callback).
+// Jamais de setSession() avec des jetons lus dans l'URL : un lien forgé
+// pouvait connecter le téléphone au compte de quelqu'un d'autre.
+async function completeLogin(callback: AuthCallback): Promise<boolean> {
+  try {
+    if (callback.code) {
+      // PKCE : échoue sans le code_verifier gardé par supabase-js sur
+      // l'appareil qui a demandé le lien (lien ouvert ailleurs, ou déjà servi).
+      const { error } = await supabase.auth.exchangeCodeForSession(callback.code);
+      if (error) console.warn('Lien de connexion refusé', error);
+      return !error;
+    }
+    if (callback.tokenHash && callback.otpType && isPendingLoginFresh(getLocalPref(PENDING_LOGIN_KEY), Date.now())) {
+      const { error } = await supabase.auth.verifyOtp({ token_hash: callback.tokenHash, type: callback.otpType });
+      if (error) console.warn('Lien de connexion refusé', error);
+      return !error;
+    }
+  } catch (err) {
+    console.warn('Lien de connexion refusé', err);
+  }
+  // Erreur renvoyée par Supabase, jetons bruts, token_hash sans demande
+  // récente depuis ce téléphone, ou lien incomplet.
+  if (callback.error) console.warn('Lien de connexion refusé', callback.error);
+  return false;
+}
 
 const TOKEN_CLEANUP_TIMEOUT_MS = 5000;
 
@@ -58,6 +92,7 @@ async function forgetDeviceToken(userId: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -73,28 +108,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  // Lien de connexion ouvert dans l'app : appUrlOpen (app déjà ouverte) ET
+  // getLaunchUrl() (démarrage à froid — l'appUrlOpen retenu par Capacitor
+  // n'est livré qu'au premier listener abonné, celui d'ImportContext). Les
+  // URL d'import sont ignorées ici (et inversement dans ImportContext). Un
+  // lien déjà traité relivré au lancement (rejeu de l'intent, voir
+  // handledLinks.ts) est ignoré, sans message d'erreur.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    const shouldIgnore = createLinkGate();
 
-    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => {
-      const tokens = extractSessionTokensFromUrl(url);
-      if (tokens) {
-        void supabase.auth.setSession(tokens);
+    async function receive(url: string, fromLaunch: boolean) {
+      const callback = parseAuthCallbackUrl(url);
+      if (!callback || (await shouldIgnore(url, fromLaunch))) return;
+      await rememberLink(linkKey(url)).catch(() => undefined);
+      // Déjà connecté·e (lien rouvert) : rien à faire.
+      const { data } = await supabase.auth.getSession();
+      if (data.session) return;
+      if (await completeLogin(callback)) {
+        setLocalPref(PENDING_LOGIN_KEY, '');
+        setLinkError(null);
+      } else {
+        setLinkError(LOGIN_LINK_ERROR);
       }
-    });
+    }
 
+    void App.getLaunchUrl().then((launch) => {
+      if (launch?.url) void receive(launch.url, true);
+    });
+    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => void receive(url, false));
     return () => {
       void listenerPromise.then((listener) => listener.remove());
     };
   }, []);
 
   async function signInWithMagicLink(email: string) {
+    setLinkError(null);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: Capacitor.isNativePlatform() ? AUTH_CALLBACK_URL : window.location.origin,
       },
     });
+    if (!error) setLocalPref(PENDING_LOGIN_KEY, JSON.stringify({ at: Date.now() }));
     return { error: error?.message ?? null };
   }
 
@@ -125,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, loading, signInWithMagicLink, signOut }}>
+    <AuthContext.Provider value={{ session, loading, signInWithMagicLink, signOut, linkError }}>
       {children}
     </AuthContext.Provider>
   );

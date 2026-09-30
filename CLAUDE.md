@@ -202,6 +202,32 @@ dédié (un script par concern, pas un fourre-tout).
   et les tableaux `rowIds`/`textIds`/`checkIds` de `MagoWidgetProvider.kt`
   en même temps.
 
+## Connexion (lien magique, PKCE)
+
+- `flowType: 'pkce'` (`supabase.ts`) : le lien de l'e-mail
+  (`{{ .ConfirmationURL }}`, modèle par défaut) revient sur
+  `com.karelisio.mago://login-callback?code=…`, échangé par
+  `exchangeCodeForSession` avec le `code_verifier` que supabase-js a gardé
+  sur l'appareil qui a demandé le lien. Ouvert ailleurs, déjà servi ou
+  expiré → message sur l'écran de connexion (« demande un nouveau lien
+  depuis ce téléphone »). Seul le lien le plus récent fonctionne (un seul
+  verifier gardé).
+- **Plus jamais de `setSession()` avec des jetons lus dans une URL** (ancien
+  flux implicite, `#access_token=…`) : n'importe quel lien forgé pouvait
+  connecter le téléphone au compte de quelqu'un d'autre. Un lien demandé
+  avec une ancienne version de l'app est donc refusé (en redemander un).
+- `token_hash` (si le modèle d'e-mail pointe directement vers l'app) :
+  `verifyOtp` seulement si un lien a été demandé depuis ce téléphone il y a
+  moins d'une heure (marqueur `mago:pendingLogin`, effacé à la connexion).
+- `AuthContext` lit aussi `App.getLaunchUrl()` : au démarrage à froid,
+  l'`appUrlOpen` retenu par Capacitor n'est livré qu'au **premier**
+  listener abonné (celui d'`ImportContext`, monté plus bas dans l'arbre donc
+  abonné avant) — le lien de connexion était perdu si Android avait tué
+  l'app pendant la lecture de l'e-mail. Même protection contre le rejeu que
+  les imports (`handledLinks.ts`) : un lien déjà traité relivré au lancement
+  est ignoré sans message ; déjà connecté·e → lien ignoré.
+- Sur le web, `detectSessionInUrl` échange le `?code=` tout seul.
+
 ## Déconnexion (Réglages > Compte)
 
 Rien du compte ne doit survivre pour le suivant sur le même téléphone :
@@ -279,7 +305,7 @@ réinsérée par `flush()` (liste ressuscitée).
 - Réception dans `ImportContext` : `App.getLaunchUrl()` (démarrage à froid)
   + `appUrlOpen` (app déjà ouverte, activité `singleTask`) ; un doublon de la
   même URL dans les 3 s est ignoré. Le listener de `AuthContext` reçoit aussi
-  ces URL et les ignore (pas de tokens) — et inversement.
+  ces URL et les ignore (pas un retour de connexion) — et inversement.
 - **Rejeu de l'URL de lancement** : `getLaunchUrl()` la renvoie tant que
   l'activité vit (« Recharger l'app »), et Android recrée l'activité avec
   son intent d'origine après la mort du processus (retour par les récents)
