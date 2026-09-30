@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { assertIncludes, fail, replaceOrFail } from './lib/patch-utils.mjs';
 
 const manifestPath = 'android/app/src/main/AndroidManifest.xml';
 
@@ -12,8 +13,7 @@ const deepLinks = [
 ];
 
 if (!existsSync(manifestPath)) {
-  console.error(`${manifestPath} introuvable — lance "npx cap add android" avant ce script.`);
-  process.exit(1);
+  fail(`${manifestPath} introuvable — lance "npx cap add android" avant ce script.`);
 }
 
 let content = readFileSync(manifestPath, 'utf8');
@@ -33,8 +33,16 @@ for (const { scheme, host } of deepLinks) {
             </intent-filter>
 
 `;
-  content = content.replace(/(\s*)<\/activity>/, `\n${filter}$1</activity>`);
+  content = replaceOrFail(
+    content,
+    /(\s*)<\/activity>/,
+    `\n${filter}$1</activity>`,
+    `AndroidManifest.xml (deep link ${scheme}://${host})`,
+  );
   console.log(`Intent-filter de deep link (${scheme}://${host}) injecté dans AndroidManifest.xml`);
 }
 
+for (const { scheme, host } of deepLinks) {
+  assertIncludes(content, `<data android:scheme="${scheme}" android:host="${host}" />`, 'AndroidManifest.xml');
+}
 writeFileSync(manifestPath, content);

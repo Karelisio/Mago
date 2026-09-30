@@ -1,15 +1,16 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { assertIncludes, fail, replaceOrFail } from './lib/patch-utils.mjs';
 
 const manifestPath = 'android/app/src/main/AndroidManifest.xml';
 
 if (!existsSync(manifestPath)) {
-  console.error(`${manifestPath} introuvable — lance "npx cap add android" avant ce script.`);
-  process.exit(1);
+  fail(`${manifestPath} introuvable — lance "npx cap add android" avant ce script.`);
 }
 
 let content = readFileSync(manifestPath, 'utf8');
 
 if (content.includes('MagoWidgetProvider')) {
+  assertIncludes(content, '.MagoFcmService', 'AndroidManifest.xml');
   console.log('Widget/FCM service déjà déclarés dans AndroidManifest.xml, rien à faire.');
   process.exit(0);
 }
@@ -38,7 +39,12 @@ const declarations = `        <receiver
 
 `;
 
-content = content.replace(/(\s*)<\/application>/, `\n${declarations}$1</application>`);
+content = replaceOrFail(
+  content,
+  /(\s*)<\/application>/,
+  `\n${declarations}$1</application>`,
+  'AndroidManifest.xml (receiver du widget + service FCM)',
+);
 
 writeFileSync(manifestPath, content);
 console.log('Receiver du widget (MagoWidgetProvider) + service FCM (MagoFcmService) injectés dans AndroidManifest.xml');

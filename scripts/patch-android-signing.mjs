@@ -1,15 +1,16 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { assertIncludes, fail, replaceOrFail } from './lib/patch-utils.mjs';
 
 const gradlePath = 'android/app/build.gradle';
 
 if (!existsSync(gradlePath)) {
-  console.error(`${gradlePath} introuvable — lance "npx cap add android" avant ce script.`);
-  process.exit(1);
+  fail(`${gradlePath} introuvable — lance "npx cap add android" avant ce script.`);
 }
 
 let content = readFileSync(gradlePath, 'utf8');
 
 if (content.includes('signingConfigs {')) {
+  assertIncludes(content, 'signingConfig signingConfigs.release', 'android/app/build.gradle');
   console.log('Signing config déjà présente dans build.gradle, rien à faire.');
   process.exit(0);
 }
@@ -29,11 +30,20 @@ const signingConfigsBlock = `    signingConfigs {
     }
 `;
 
-content = content.replace('android {\n', `android {\n${signingConfigsBlock}`);
+// Sans ces deux ancres, l'APK sortirait non signé (ou signé en debug) :
+// l'installation par-dessus la version en place échouerait sur le téléphone.
+content = replaceOrFail(
+  content,
+  'android {\n',
+  `android {\n${signingConfigsBlock}`,
+  'android/app/build.gradle (signingConfigs)',
+);
 
-content = content.replace(
+content = replaceOrFail(
+  content,
   /release \{\n(\s*)minifyEnabled/,
   'release {\n$1signingConfig signingConfigs.release\n$1minifyEnabled',
+  'android/app/build.gradle (signingConfig du buildType release)',
 );
 
 writeFileSync(gradlePath, content);

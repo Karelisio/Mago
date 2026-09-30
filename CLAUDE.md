@@ -34,6 +34,15 @@ plugins Capacitor) et les `scripts/patch-android-*.mjs` (patchs ciblés du
 manifest/gradle générés). Voir `.github/workflows/android-release.yml` pour
 l'ordre exact des étapes — il compte.
 
+Chaque script est idempotent (déjà patché = OK) mais **échoue (code 1,
+« motif attendu introuvable »)** dès qu'une ancre du template Capacitor
+manque (`scripts/lib/patch-utils.mjs` : `replaceOrFail` puis
+`assertIncludes` sur le résultat). Avant, un template modifié faisait
+« réussir » le script sans rien changer, et l'erreur n'apparaissait qu'à
+l'exécution sur le téléphone (plugin non enregistré, permission absente).
+Tout nouveau patch passe par ces helpers, jamais par un `.replace()` nu.
+Côté release, `fail_on_unmatched_files: true` : pas de release sans APK.
+
 Pour ajouter un nouveau plugin Capacitor : l'ajouter au tableau `pluginFiles`
 dans `copy-android-templates.mjs`, la boucle d'enregistrement dans
 `MainActivity.java` s'occupe du reste. Un composant natif qui n'est PAS un

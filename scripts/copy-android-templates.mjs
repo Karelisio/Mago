@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { assertIncludes, fail, replaceOrFail } from './lib/patch-utils.mjs';
 
 const packageDir = 'android/app/src/main/java/com/karelisio/mago';
 const mainActivityPath = join(packageDir, 'MainActivity.java');
@@ -9,8 +10,7 @@ const templatesDir = 'android-templates';
 const KOTLIN_VERSION = '1.9.24';
 
 if (!existsSync(mainActivityPath)) {
-  console.error(`${mainActivityPath} introuvable — lance "npx cap add android" avant ce script.`);
-  process.exit(1);
+  fail(`${mainActivityPath} introuvable — lance "npx cap add android" avant ce script.`);
 }
 
 // Le template Capacitor n'a pas le support Kotlin activé par défaut : sans ça,
@@ -18,25 +18,32 @@ if (!existsSync(mainActivityPath)) {
 // build échoue avec "cannot find symbol".
 let rootGradle = readFileSync(rootGradlePath, 'utf8');
 if (!rootGradle.includes('kotlin-gradle-plugin')) {
-  rootGradle = rootGradle.replace(
-    "classpath 'com.android.tools.build:gradle:8.2.1'",
-    `classpath 'com.android.tools.build:gradle:8.2.1'\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:${KOTLIN_VERSION}'`,
+  // Ajouté juste après le plugin Gradle Android, quelle que soit sa version.
+  rootGradle = replaceOrFail(
+    rootGradle,
+    /^([ \t]*)(classpath 'com\.android\.tools\.build:gradle:[^']+')/m,
+    `$1$2\n$1classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:${KOTLIN_VERSION}'`,
+    'android/build.gradle (plugin Gradle Kotlin)',
   );
   writeFileSync(rootGradlePath, rootGradle);
   console.log('Plugin Gradle Kotlin ajouté à android/build.gradle');
 }
+assertIncludes(rootGradle, 'org.jetbrains.kotlin:kotlin-gradle-plugin', 'android/build.gradle');
 
 let appGradle = readFileSync(appGradlePath, 'utf8');
 if (!appGradle.includes("apply plugin: 'kotlin-android'")) {
-  appGradle = appGradle
-    .replace(
-      "apply plugin: 'com.android.application'",
-      "apply plugin: 'com.android.application'\napply plugin: 'kotlin-android'",
-    )
-    .replace(
-      "implementation fileTree(include: ['*.jar'], dir: 'libs')",
-      `implementation fileTree(include: ['*.jar'], dir: 'libs')\n    implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
-    );
+  appGradle = replaceOrFail(
+    appGradle,
+    "apply plugin: 'com.android.application'",
+    "apply plugin: 'com.android.application'\napply plugin: 'kotlin-android'",
+    'android/app/build.gradle (plugin kotlin-android)',
+  );
+  appGradle = replaceOrFail(
+    appGradle,
+    "implementation fileTree(include: ['*.jar'], dir: 'libs')",
+    `implementation fileTree(include: ['*.jar'], dir: 'libs')\n    implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
+    'android/app/build.gradle (kotlin-stdlib)',
+  );
   writeFileSync(appGradlePath, appGradle);
   console.log('Plugin kotlin-android + stdlib ajoutés à android/app/build.gradle');
 }
@@ -48,16 +55,21 @@ if (!appGradle.includes("apply plugin: 'kotlin-android'")) {
 // dépendances Firebase Messaging elles-mêmes.
 appGradle = readFileSync(appGradlePath, 'utf8');
 if (!appGradle.includes('com.google.firebase:firebase-messaging')) {
-  appGradle = appGradle.replace(
+  appGradle = replaceOrFail(
+    appGradle,
     `implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
     [
       `implementation "org.jetbrains.kotlin:kotlin-stdlib:${KOTLIN_VERSION}"`,
       `    implementation platform('com.google.firebase:firebase-bom:33.5.1')`,
       `    implementation 'com.google.firebase:firebase-messaging'`,
     ].join('\n'),
+    'android/app/build.gradle (dépendances Firebase Messaging)',
   );
   writeFileSync(appGradlePath, appGradle);
   console.log('Dépendances Firebase Messaging ajoutées à android/app/build.gradle');
+}
+for (const needle of ["apply plugin: 'kotlin-android'", 'kotlin-stdlib', 'com.google.firebase:firebase-messaging']) {
+  assertIncludes(appGradle, needle, 'android/app/build.gradle');
 }
 
 mkdirSync(packageDir, { recursive: true });
@@ -70,40 +82,45 @@ console.log(pluginFiles.join(' + '), 'copiés dans', packageDir);
 // Enregistre chaque plugin manquant dans MainActivity.java (idempotent, un
 // plugin déjà enregistré est laissé tel quel).
 const pluginClasses = pluginFiles.map((f) => f.replace('.kt', ''));
-let mainActivity = readFileSync(mainActivityPath, 'utf8');
+const originalMainActivity = readFileSync(mainActivityPath, 'utf8');
+let mainActivity = originalMainActivity;
 
 if (!mainActivity.includes('onCreate(Bundle savedInstanceState)')) {
-  mainActivity = mainActivity
-    .replace(
-      "import com.getcapacitor.BridgeActivity;",
-      "import android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;",
-    )
-    .replace(
-      /public class MainActivity extends BridgeActivity \{\}/,
-      [
-        'public class MainActivity extends BridgeActivity {',
-        '    @Override',
-        '    public void onCreate(Bundle savedInstanceState) {',
-        '        super.onCreate(savedInstanceState);',
-        '    }',
-        '}',
-      ].join('\n'),
-    );
+  mainActivity = replaceOrFail(
+    mainActivity,
+    'import com.getcapacitor.BridgeActivity;',
+    'import android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;',
+    'MainActivity.java (import de Bundle)',
+  );
+  mainActivity = replaceOrFail(
+    mainActivity,
+    /public class MainActivity extends BridgeActivity\s*\{\s*\}/,
+    [
+      'public class MainActivity extends BridgeActivity {',
+      '    @Override',
+      '    public void onCreate(Bundle savedInstanceState) {',
+      '        super.onCreate(savedInstanceState);',
+      '    }',
+      '}',
+    ].join('\n'),
+    'MainActivity.java (ajout de onCreate)',
+  );
 }
 
-let registeredAny = false;
 for (const className of pluginClasses) {
   const registration = `registerPlugin(${className}.class);`;
   if (!mainActivity.includes(registration)) {
-    mainActivity = mainActivity.replace(
+    mainActivity = replaceOrFail(
+      mainActivity,
       'super.onCreate(savedInstanceState);',
       `${registration}\n        super.onCreate(savedInstanceState);`,
+      `MainActivity.java (enregistrement de ${className})`,
     );
-    registeredAny = true;
   }
+  assertIncludes(mainActivity, registration, 'MainActivity.java');
 }
 
-if (registeredAny) {
+if (mainActivity !== originalMainActivity) {
   writeFileSync(mainActivityPath, mainActivity);
   console.log('Plugins manquants enregistrés dans MainActivity.java');
 } else {
