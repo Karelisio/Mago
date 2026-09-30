@@ -167,8 +167,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ligne, supabase-js renvoie une erreur mais retire quand même la
     // session locale : on nettoie dès qu'elle a disparu.
     const { error } = await supabase.auth.signOut({ scope: 'local' });
-    const { data: after } = await supabase.auth.getSession();
-    if (after.session) {
+    // Session encore là — ou jeton expiré impossible à rafraîchir hors ligne
+    // (getSession renvoie alors une erreur, la session reste stockée) : on ne
+    // nettoie rien, l'utilisateur reste connecté et peut réessayer.
+    const { data: after, error: afterError } = await supabase.auth.getSession();
+    if (after.session || afterError) {
       return { error: `Déconnexion impossible${error ? ` : ${error.message}` : ''}. Réessaie avec une connexion.` };
     }
     await clearQueue().catch(() => undefined);

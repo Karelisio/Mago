@@ -83,7 +83,9 @@ function SyncSettings() {
   const [confirmReset, setConfirmReset] = useState(false);
 
   function reloadErrors() {
-    void readSyncErrors().then(setErrors);
+    void readSyncErrors()
+      .then(setErrors)
+      .catch(() => undefined);
   }
 
   // Relu à chaque envoi (le nombre en attente change) ; le journal est aussi
@@ -182,11 +184,9 @@ function AccountSettings() {
     setSigningOut(true);
     const result = await signOut();
     // Succès : la session disparaît et l'écran de connexion remplace celui-ci.
-    if (result.error) {
-      setSigningOut(false);
-      setUnsynced(null);
-      setError(result.error);
-    }
+    setSigningOut(false);
+    setUnsynced(null);
+    if (result.error) setError(result.error);
   }
 
   return (
