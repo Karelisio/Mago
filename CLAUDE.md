@@ -209,6 +209,17 @@ une autre liste permettait de la rejoindre via `accept_invite`). Les
 écritures de la file de sync renvoient la ligne complète avec le même
 `owner_id` : seule une vraie modification est refusée.
 
+Supprimer une liste (`useLists.ts#deleteList`, articles supprimés en
+cascade) : bouton affiché au/à la propriétaire seulement (policy
+`lists_delete`), après confirmation (`ConfirmDialog`), réseau obligatoire
+(pas de file de sync). Un DELETE filtré par RLS ne renvoie **aucune erreur**
+(204, 0 ligne) : d'où le `.select('id')` — 0 ligne → message d'erreur et
+liste remise en cache, sauf si sa création attendait encore dans la file
+(liste créée hors ligne : suppression purement locale via `discard`).
+Après suppression, les écritures encore en file pour la liste et ses
+articles sont retirées : une ligne complète absente du serveur serait
+réinsérée par `flush()` (liste ressuscitée).
+
 ## Imports externes (`mago://import`)
 
 - Lien `mago://import?data=<base64url(JSON)>` (ou payload en dernier segment

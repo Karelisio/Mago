@@ -2,18 +2,26 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLists } from '../hooks/useLists';
 import { useListCategories } from '../hooks/useCategories';
+import { useAuth } from '../contexts/AuthContext';
+import { useImport } from '../contexts/ImportContext';
+import type { ListRow } from '../lib/database.types';
 import { categoryTone } from '../lib/categoryTone';
 import { getLocalPref, setLocalPref, LAST_LIST_TYPE_KEY } from '../lib/localPref';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { MagoIcon } from '../components/MagoIcon';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function Lists() {
   const { data: lists, isLoading, createList, deleteList, swapPositions, refetch, isRefetching } = useLists();
   const { data: categories } = useListCategories();
+  const { session } = useAuth();
+  const { showSnackbar } = useImport();
   const [filter, setFilter] = useState<string>('all');
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState(() => getLocalPref(LAST_LIST_TYPE_KEY));
   const [shared, setShared] = useState(true);
+  const [toDelete, setToDelete] = useState<ListRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const categoryNames = (categories ?? []).map((c) => c.name);
   // Le type reste optionnel : la table des types de liste peut être vidée
@@ -55,6 +63,15 @@ export function Lists() {
     if (!newName.trim()) return;
     await createList(newName.trim(), effectiveNewType, !shared);
     setNewName('');
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return;
+    setDeleting(true);
+    const { error } = await deleteList(toDelete);
+    setDeleting(false);
+    setToDelete(null);
+    if (error) showSnackbar(error);
   }
 
   return (
@@ -154,15 +171,34 @@ export function Lists() {
                   ↓
                 </button>
               </div>
-              <button className="btn-text" onClick={() => deleteList(list)} aria-label="Supprimer la liste">
-                Supprimer
-              </button>
+              {/* Seul·e le/la propriétaire peut supprimer (policy lists_delete). */}
+              {list.owner_id === session?.user.id && (
+                <button className="btn-text" onClick={() => setToDelete(list)} aria-label={`Supprimer ${list.name}`}>
+                  Supprimer
+                </button>
+              )}
             </div>
           ))}
         </div>
       ))}
 
       {!isLoading && filtered.length === 0 && <p>Aucune liste pour l'instant.</p>}
+
+      {toDelete && (
+        <ConfirmDialog
+          title={`Supprimer « ${toDelete.name} » ?`}
+          message={
+            toDelete.is_private
+              ? 'La liste et tous ses articles seront supprimés définitivement.'
+              : 'La liste et tous ses articles seront supprimés définitivement, y compris pour les personnes avec qui elle est partagée.'
+          }
+          confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+          destructive
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setToDelete(null)}
+        />
+      )}
     </div>
   );
 }
