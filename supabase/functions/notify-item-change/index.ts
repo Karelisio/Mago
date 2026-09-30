@@ -19,6 +19,13 @@ interface Payload {
 // / MagoWidgetProvider.kt (rowIds).
 const WIDGET_MAX_ITEMS = 20;
 
+// La charge data d'un message FCM est limitée à 4 Ko (clés comprises) ; un
+// message plus gros est refusé et le widget n'est plus mis à jour. On garde
+// de la marge, et on retire des articles en fin d'aperçu tant que le message
+// dépasse ce budget (remaining/total restent exacts).
+const FCM_DATA_BUDGET_BYTES = 3500;
+const encoder = new TextEncoder();
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -63,37 +70,57 @@ Deno.serve(async (req) => {
 
   const { data: list } = await supabase.from('lists').select('name').eq('id', payload.list_id).single();
 
+  // Seulement les colonnes utiles au widget, dans le même ordre que l'app
+  // (useItems.ts) : des lignes complètes (select('*')) dépassaient la limite
+  // de 4 Ko dès une dizaine d'articles, et plus aucun push n'arrivait.
   const { data: items } = await supabase
     .from('items')
-    .select('*')
+    .select('id, list_id, name, qty, unit, completed, category')
     .eq('list_id', payload.list_id)
-    .eq('is_relevant', true);
+    .eq('is_relevant', true)
+    .order('category', { ascending: true, nullsFirst: false })
+    .order('name', { ascending: true });
 
-  const remaining = (items ?? []).filter((i) => !i.completed);
+  const unchecked = (items ?? [])
+    .filter((i) => !i.completed)
+    .map(({ id, list_id, name, qty, unit, completed }) => ({ id, list_id, name, qty, unit, completed }));
   const total = items?.length ?? 0;
 
   const serviceAccount = JSON.parse(Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')!);
   const projectId = Deno.env.get('FCM_PROJECT_ID')!;
 
-  // Le snapshot contient les lignes complètes (mêmes noms de colonnes que
-  // Postgres) : si le/la destinataire coche un article depuis le widget
-  // app fermée, ces lignes sont mises en attente telles quelles dans la
-  // même queue de sync hors-ligne que le reste de l'app (voir
-  // offlineQueue.ts côté client, et MagoWidgetProvider.kt côté natif) —
-  // d'où user_id qui doit être celui du destinataire, pas de l'auteur.
+  // Même format que useWidgetSync.ts (chemin app ouverte) : articles non
+  // cochés réduits à {id, list_id, name, qty, unit, completed} (noms de
+  // colonnes Postgres), remaining = nombre total d'articles non cochés. Si
+  // le/la destinataire coche un article depuis le widget app fermée, le
+  // natif met en file un patch signé de user_id (voir MagoWidgetProvider.kt
+  // et offlineQueue.ts) — d'où user_id qui doit être celui du destinataire,
+  // pas de l'auteur.
   const staleTokenIds: string[] = [];
   for (const { id, fcm_token, user_id } of tokens) {
+    const snapshotItems = unchecked.slice(0, WIDGET_MAX_ITEMS);
     const snapshot = {
       list_id: payload.list_id,
       list_name: list?.name ?? '',
       user_id,
       total,
-      items: remaining.slice(0, WIDGET_MAX_ITEMS),
+      remaining: unchecked.length,
+      items: snapshotItems,
     };
-    const data = { snapshot: JSON.stringify(snapshot) };
+    let data = { snapshot: JSON.stringify(snapshot) };
+    while (snapshotItems.length > 0 && encoder.encode(JSON.stringify(data)).length > FCM_DATA_BUDGET_BYTES) {
+      snapshotItems.pop();
+      data = { snapshot: JSON.stringify(snapshot) };
+    }
     const result = await sendFcmDataMessage(serviceAccount, projectId, fcm_token, data, payload.list_id);
-    if (!result.ok && (result.status === 404 || result.errorCode === 'UNREGISTERED')) {
-      staleTokenIds.push(id);
+    if (!result.ok) {
+      console.error('Envoi FCM échoué', { tokenId: id, status: result.status, errorCode: result.errorCode });
+      // Token périmé (appli désinstallée, token régénéré) : seul cas où on le
+      // supprime — une erreur passagère ou un message refusé ne doit pas
+      // désinscrire l'appareil.
+      if (result.status === 404 || result.errorCode === 'UNREGISTERED') {
+        staleTokenIds.push(id);
+      }
     }
   }
 

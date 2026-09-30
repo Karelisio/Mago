@@ -99,18 +99,38 @@ dédié (un script par concern, pas un fourre-tout).
 
 ## Widget écran d'accueil (Phase 5)
 
-- Une seule liste fixe (v1, pas de config) : **la première par
-  `created_at` ascendant**, même tri que `useLists.ts`. Si ce tri change un
-  jour, le widget change de liste en même temps — c'est voulu.
+- Une seule liste : celle choisie dans Réglages (préférence par appareil,
+  `useWidgetListPref.ts`), sinon **la première par `created_at`
+  ascendant**, même tri que `useLists.ts`. Si ce tri change un jour, le
+  widget change de liste en même temps — c'est voulu.
 - Snapshot unique en JSON, stocké dans les `SharedPreferences` "mago_widget"
   sous la clé "snapshot_json", forme `{list_id, list_name, user_id, total,
-  items: ItemRow[]}` (noms de colonnes Postgres exacts pour `items`, voir
-  plus bas). Alimenté par deux chemins qui doivent rester au même format :
-  `WidgetBridgePlugin.updateSnapshot()` (app ouverte, JS) et
-  `MagoFcmService.onMessageReceived()` (app fermée, push FCM data-only —
-  l'Edge Function `notify-item-change` construit exactement ce JSON et
-  l'envoie sous une seule clé `snapshot` pour éviter d'avoir deux formats
-  à maintenir).
+  remaining, items}` : `total` = articles de la liste (cochés compris),
+  `remaining` = articles non cochés (tous, pas seulement ceux affichés),
+  `items` = articles **non cochés** seulement, triés comme l'app
+  (`useItems.ts`), réduits à `{id, list_id, name, qty, unit, completed}`
+  (noms de colonnes Postgres). Le natif ne lit ces champs qu'avec `opt*` +
+  valeur par défaut (repli sur un décompte des articles affichés si
+  `remaining` manque). Alimenté par deux chemins qui doivent rester au même
+  format : `WidgetBridgePlugin.updateSnapshot()` (app ouverte, JS,
+  `useWidgetSync.ts`) et `MagoFcmService.onMessageReceived()` (app fermée,
+  push FCM data-only — l'Edge Function `notify-item-change` construit
+  exactement ce JSON et l'envoie sous une seule clé `snapshot` pour éviter
+  d'avoir deux formats à maintenir).
+- **Charge data FCM limitée à 4 Ko** : l'Edge Function retire des articles
+  en fin d'aperçu tant que `JSON.stringify({ snapshot })` dépasse 3500
+  octets (≈ 14 à 19 articles selon la longueur des noms), `remaining`/`total`
+  restant exacts. Avec des lignes complètes (`select('*')`), plus aucun push
+  n'arrivait dès ~9 articles. Tout envoi FCM non OK est journalisé (status +
+  `errorCode`, lu dans le détail `google.firebase.fcm.v1.FcmError`) ; un
+  token n'est purgé que sur 404 ou `UNREGISTERED`.
+- Le push concerne la liste modifiée, quelle qu'elle soit :
+  `MagoFcmService` l'ignore si le snapshot déjà stocké a un autre `list_id`
+  non vide (le widget reste sur sa liste). Sans snapshot stocké, le push
+  est accepté tel quel.
+- Tout chemin de mise à jour du widget (`onUpdate`, `refreshAll`, coche)
+  est enveloppé dans `try { … } catch (e: Throwable)` : il tourne dans le
+  processus de l'app, une exception la fermerait.
 - **Cocher un article depuis le widget ne fait aucun appel réseau natif.**
   Un **patch** `{id, list_id, completed, last_modified_by, updated_at}` —
   jamais la ligne entière du snapshot, qui peut être périmée (renommage

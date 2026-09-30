@@ -11,14 +11,17 @@ import { WidgetBridge } from '../lib/widgetBridge';
 // temps réel via Supabase Realtime), en plus du chemin FCM (MagoFcmService)
 // qui couvre le cas app fermée. Sans ça, un widget tout juste ajouté reste
 // bloqué sur son état "Ouvre l'app pour charger ta liste" tant qu'aucun push
-// n'est encore arrivé. Une seule liste fixe pour la v1 (la plus ancienne,
-// même tri que useLists.ts).
+// n'est encore arrivé. Une seule liste : celle choisie dans Réglages, sinon
+// la plus ancienne (même tri que useLists.ts) — MagoFcmService ignore les
+// push des autres listes d'après le list_id envoyé ici.
 //
-// Les items envoyés gardent les noms de colonnes Postgres (snake_case) :
-// si un article est coché depuis le widget app fermée, le natif l'ajoute
-// tel quel à la queue de sync hors-ligne existante (voir offlineQueue.ts),
-// synchronisée normalement par SyncContext à la prochaine ouverture — pas
-// besoin d'un jeton d'accès natif pour écrire depuis le widget.
+// Même format que le snapshot de notify-item-change/index.ts (chemin FCM,
+// app fermée) : articles non cochés réduits à quelques colonnes (noms
+// Postgres, snake_case, voir WidgetItem), remaining = nombre total
+// d'articles non cochés. Si un article est coché depuis le widget, le natif
+// met en file un patch dans la queue de sync hors-ligne existante (voir
+// offlineQueue.ts), synchronisée normalement par SyncContext — pas besoin
+// d'un jeton d'accès natif pour écrire depuis le widget.
 //
 // WIDGET_MAX_ITEMS doit rester identique à notify-item-change/index.ts
 // (chemin FCM, app fermée) et au nombre de lignes de
@@ -42,13 +45,16 @@ export function useWidgetSync() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !session || !firstList || !items) return;
 
-    const remaining = items.filter((item) => !item.completed);
+    const unchecked = items.filter((item) => !item.completed);
     void WidgetBridge.updateSnapshot({
       list_id: firstList.id,
       list_name: firstList.name,
       user_id: session.user.id,
       total: items.length,
-      items: remaining.slice(0, WIDGET_MAX_ITEMS),
+      remaining: unchecked.length,
+      items: unchecked
+        .slice(0, WIDGET_MAX_ITEMS)
+        .map(({ id, list_id, name, qty, unit, completed }) => ({ id, list_id, name, qty, unit, completed })),
     }).catch(() => {
       // Best-effort : le widget reste sur son dernier snapshot connu.
     });

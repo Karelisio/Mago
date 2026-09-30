@@ -71,6 +71,18 @@ export interface FcmSendResult {
   errorCode?: string;
 }
 
+// Corps d'erreur de l'API FCM v1 : le code précis (UNREGISTERED,
+// QUOTA_EXCEEDED…) est dans le détail de type FcmError ; error.status n'est
+// que le statut générique (NOT_FOUND, INVALID_ARGUMENT…).
+interface FcmErrorBody {
+  error?: {
+    status?: string;
+    details?: { '@type'?: string; errorCode?: string }[];
+  };
+}
+
+const FCM_ERROR_TYPE = 'type.googleapis.com/google.firebase.fcm.v1.FcmError';
+
 export async function sendFcmDataMessage(
   serviceAccount: ServiceAccount,
   projectId: string,
@@ -98,6 +110,10 @@ export async function sendFcmDataMessage(
     return { ok: true, status: res.status };
   }
 
-  const body = await res.json().catch(() => null);
-  return { ok: false, status: res.status, errorCode: body?.error?.status };
+  const body = (await res.json().catch(() => null)) as FcmErrorBody | null;
+  const details = body?.error?.details;
+  const fcmError = (Array.isArray(details) ? details : []).find(
+    (d) => d?.['@type'] === FCM_ERROR_TYPE && typeof d.errorCode === 'string',
+  );
+  return { ok: false, status: res.status, errorCode: fcmError?.errorCode ?? body?.error?.status };
 }
