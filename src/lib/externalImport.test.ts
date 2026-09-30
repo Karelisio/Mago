@@ -4,6 +4,7 @@ import {
   base64UrlDecodeToString,
   base64UrlEncodeString,
   buildImportUrl,
+  formatQuantity,
   parseImportUrl,
   pickDefaultTarget,
   planImport,
@@ -196,5 +197,14 @@ describe('liste cible par défaut', () => {
     expect(pickDefaultTarget(lists, null, 'l2', 'Import')).toEqual({ kind: 'existing', listId: 'l2' });
     expect(pickDefaultTarget(lists, null, 'supprimée', 'Import')).toEqual({ kind: 'existing', listId: 'l1' });
     expect(pickDefaultTarget([], null, '', 'Import Recettes')).toEqual({ kind: 'new', name: 'Import Recettes' });
+  });
+});
+
+describe('formatQuantity', () => {
+  it('affiche la quantité à la française, avec l’unité', () => {
+    expect(formatQuantity(1.5, 'kg')).toBe('1,5 kg');
+    expect(formatQuantity(3, null)).toBe('3');
+    expect(formatQuantity(null, 'g')).toBe('g');
+    expect(formatQuantity(null, null)).toBe('');
   });
 });

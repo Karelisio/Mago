@@ -20,11 +20,18 @@ class MagoFcmService : FirebaseMessagingService() {
         val snapshotJson = remoteMessage.data["snapshot"] ?: return
         val prefs = getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
 
+        // Déconnexion depuis l'app (WidgetBridgePlugin.clearSnapshot) : un push
+        // encore adressé à l'ancien compte (jeton pas encore retiré de
+        // device_tokens, ou déjà en route) ne doit pas réafficher sa liste.
+        // Levé par le prochain aperçu envoyé par l'app connectée.
+        if (prefs.getBoolean("signed_out", false)) return
+
         // Le push concerne la liste modifiée, quelle qu'elle soit, alors que le
         // widget affiche une liste précise (choisie dans Réglages, sinon la
         // plus ancienne) : un snapshot d'une autre liste ne doit pas la
         // remplacer. Sans snapshot déjà stocké (widget jamais alimenté par
-        // l'app), le push est accepté tel quel.
+        // l'app), le push est accepté tel quel — sauf après une déconnexion
+        // (ci-dessus).
         val incomingListId = try {
             JSONObject(snapshotJson).optString("list_id", "")
         } catch (e: Throwable) {

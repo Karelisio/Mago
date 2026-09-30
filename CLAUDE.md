@@ -34,6 +34,15 @@ plugins Capacitor) et les `scripts/patch-android-*.mjs` (patchs ciblés du
 manifest/gradle générés). Voir `.github/workflows/android-release.yml` pour
 l'ordre exact des étapes — il compte.
 
+Chaque script est idempotent (déjà patché = OK) mais **échoue (code 1,
+« motif attendu introuvable »)** dès qu'une ancre du template Capacitor
+manque (`scripts/lib/patch-utils.mjs` : `replaceOrFail` puis
+`assertIncludes` sur le résultat). Avant, un template modifié faisait
+« réussir » le script sans rien changer, et l'erreur n'apparaissait qu'à
+l'exécution sur le téléphone (plugin non enregistré, permission absente).
+Tout nouveau patch passe par ces helpers, jamais par un `.replace()` nu.
+Côté release, `fail_on_unmatched_files: true` : pas de release sans APK.
+
 Pour ajouter un nouveau plugin Capacitor : l'ajouter au tableau `pluginFiles`
 dans `copy-android-templates.mjs`, la boucle d'enregistrement dans
 `MainActivity.java` s'occupe du reste. Un composant natif qui n'est PAS un
@@ -56,7 +65,17 @@ dédié (un script par concern, pas un fourre-tout).
   `EXECUTE` à `PUBLIC` par défaut sur toute nouvelle fonction. Il faut
   `revoke execute on function ... from public;` explicitement, sinon
   `anon`/`authenticated` restent exécutants via `PUBLIC`. Vérifier après
-  coup avec `mcp__Supabase__get_advisors` (type `security`).
+  coup avec `mcp__Supabase__get_advisors` (type `security`). Et l'inverse
+  aussi : depuis 0013, les triggers « figer une colonne » sont révoqués
+  aussi pour `anon`/`authenticated` (les privilèges par défaut de Supabase
+  les leur accordent explicitement, pas seulement via `PUBLIC`).
+- **Une policy RLS ne peut pas lire `auth.users`** (`authenticated` n'y a
+  aucun droit) : `invites_select`/`partner_invites_select` le faisaient, et
+  TOUT `SELECT` sur ces tables échouait en production (« permission denied
+  for table users ») — aucune invitation ne s'affichait. Pour l'e-mail de
+  l'utilisateur, utiliser `(select auth.jwt()) ->> 'email'` (0014). Toute
+  policy s'écrit avec `(select auth.uid())` (évalué une fois par requête,
+  advisor `performance`).
 - **`.upsert()` piégeux avec RLS** : un `INSERT ... ON CONFLICT DO UPDATE`
   exige que la policy RLS `UPDATE` soit satisfaite même sans conflit réel.
   Si cette policy dépend d'un état posé par un trigger qui n'a pas encore
@@ -80,7 +99,11 @@ dédié (un script par concern, pas un fourre-tout).
   `ListDetail` s'abonnant tous deux à `items:<listId>` pour la même liste).
   `useRealtimeItems.ts` compte les références par `listId` pour n'ouvrir
   qu'un seul abonnement réel, quel que soit le nombre de composants montés
-  dessus.
+  dessus. En revanche, rouvrir aussitôt une liste fermée crée bien un canal
+  neuf : avec realtime-js 2.117 (`@supabase/phoenix`), `removeChannel()`
+  ferme et retire le canal de façon synchrone (le `leave` est acquitté
+  localement) — vérifié avec un faux socket qui n'acquitte jamais
+  `phx_leave` ; pas besoin de suffixer le topic.
 - **Qualificatifs de ressource combinés** : `values-v31/` (Android 12+) ne
   s'applique **qu'en thème clair** — `values-night/` (qualificatif "night"
   seul) est plus spécifique et gagne en thème sombre. Pour du contenu
@@ -127,7 +150,9 @@ dédié (un script par concern, pas un fourre-tout).
 - Le push concerne la liste modifiée, quelle qu'elle soit :
   `MagoFcmService` l'ignore si le snapshot déjà stocké a un autre `list_id`
   non vide (le widget reste sur sa liste). Sans snapshot stocké, le push
-  est accepté tel quel.
+  est accepté tel quel — sauf après une déconnexion : `clearSnapshot()`
+  pose `signed_out` dans "mago_widget", et tout push est ignoré jusqu'au
+  prochain `updateSnapshot()` (qui le retire).
 - Tout chemin de mise à jour du widget (`onUpdate`, `refreshAll`, coche)
   est enveloppé dans `try { … } catch (e: Throwable)` : il tourne dans le
   processus de l'app, une exception la fermerait.
@@ -138,13 +163,20 @@ dédié (un script par concern, pas un fourre-tout).
   de sync hors-ligne de l'app (mêmes `SharedPreferences` que
   `@capacitor/preferences`, groupe par défaut `"CapacitorStorage"`, clé
   `"mago_sync_queue_v1"`, même format que `QueueEntry` dans
-  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?}`). Si une
+  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?,
+  attempts?}`). Si une
   entrée existe déjà pour cet article, le widget fusionne le patch dans sa
-  `row` (en gardant ses autres colonnes et son drapeau `patch`) au lieu de
-  la remplacer. `SyncContext.flush()` la synchronise au prochain passage de
-  l'app au premier plan (`appStateChange` relit la file) — aucun jeton
-  d'accès natif à maintenir. Si cette queue change de nom/clé/format côté
-  JS, `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+  `row` (en gardant ses autres colonnes et son drapeau `patch`), **à sa
+  place dans la file**, au lieu de la remplacer. `SyncContext.flush()` la
+  synchronise au prochain passage de l'app au premier plan
+  (`appStateChange` relit la file) — aucun jeton d'accès natif à
+  maintenir. Si cette queue change de nom/clé/format côté JS,
+  `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+- La file est envoyée **dans l'ordre** : une nouvelle version d'une ligne
+  déjà en file la remplace **sur place** (`enqueueEntry`, et la fusion du
+  widget), jamais en fin de file — sinon une liste créée hors ligne puis
+  renommée/déplacée passait derrière ses propres articles, dont l'insert
+  échouait (FK/RLS) tant qu'elle n'existait pas côté serveur.
 - Champs de `QueueEntry` à garder alignés JS ↔ Kotlin :
   - `version` : UUID neuf à **chaque** mise en file (JS
     `crypto.randomUUID()`, Kotlin `UUID.randomUUID()`). `flush()` relit
@@ -156,6 +188,20 @@ dédié (un script par concern, pas un fourre-tout).
   - `patch: true` : jamais inséré. Ligne absente côté serveur → entrée
     abandonnée (journalisée via `logSyncError`) ; sinon `update()` des
     seules colonnes du patch.
+  - `attempts` (optionnel, absent = 0) : échecs **définitifs** de cette
+    version — code Postgres de classe 23 (FK 23503, doublon 23505…) ou refus
+    d'une policy RLS (42501 « row-level security » ; pas un 42501
+    « permission denied » dû à un GRANT manquant), voir
+    `isPermanentSyncError`. Au 3e (`MAX_SYNC_ATTEMPTS`),
+    l'entrée est retirée et journalisée (« Abandonnée après 3 échecs »).
+    Une erreur réseau, serveur ou de schéma (PGRST…) ne compte jamais, ni
+    l'échec d'un article dont la liste attend encore son envoi. Remis à
+    zéro à chaque nouvelle version (nouvelle entrée côté JS ; la fusion du
+    widget retire le champ). `flush()` ne tourne jamais sans session (sinon
+    RLS refuserait tout et ferait abandonner des écritures valides).
+- Réglages > Synchronisation : nombre d'écritures en attente, « Vider la
+  file » (après confirmation, `resetQueue`) et journal des erreurs d'envoi
+  (`syncErrorLog.ts`, 20 dernières).
 - Le trigger `set_updated_at` réécrit `updated_at` à l'heure **serveur** à
   chaque UPDATE : `flush()` mémorise celui renvoyé par ses propres UPDATE
   pour ne pas prendre sa propre écriture pour une modification plus récente
@@ -172,6 +218,55 @@ dédié (un script par concern, pas un fourre-tout).
   `RemoteViewsService`) : changer ce nombre veut dire régénérer ce fichier
   et les tableaux `rowIds`/`textIds`/`checkIds` de `MagoWidgetProvider.kt`
   en même temps.
+
+## Connexion (lien magique, PKCE)
+
+- `flowType: 'pkce'` (`supabase.ts`) : le lien de l'e-mail
+  (`{{ .ConfirmationURL }}`, modèle par défaut) revient sur
+  `com.karelisio.mago://login-callback?code=…`, échangé par
+  `exchangeCodeForSession` avec le `code_verifier` que supabase-js a gardé
+  sur l'appareil qui a demandé le lien. Ouvert ailleurs, déjà servi ou
+  expiré → message sur l'écran de connexion (« demande un nouveau lien
+  depuis ce téléphone »). Seul le lien le plus récent fonctionne (un seul
+  verifier gardé).
+- **Plus jamais de `setSession()` avec des jetons lus dans une URL** (ancien
+  flux implicite, `#access_token=…`) : n'importe quel lien forgé pouvait
+  connecter le téléphone au compte de quelqu'un d'autre. Un lien demandé
+  avec une ancienne version de l'app est donc refusé (en redemander un).
+- `token_hash` (si le modèle d'e-mail pointe directement vers l'app) :
+  `verifyOtp` seulement si un lien a été demandé depuis ce téléphone il y a
+  moins d'une heure (marqueur `mago:pendingLogin`, effacé à la connexion).
+- `AuthContext` lit aussi `App.getLaunchUrl()` : au démarrage à froid,
+  l'`appUrlOpen` retenu par Capacitor n'est livré qu'au **premier**
+  listener abonné (celui d'`ImportContext`, monté plus bas dans l'arbre donc
+  abonné avant) — le lien de connexion était perdu si Android avait tué
+  l'app pendant la lecture de l'e-mail. Même protection contre le rejeu que
+  les imports (`handledLinks.ts`) : un lien déjà traité relivré au lancement
+  est ignoré sans message ; déjà connecté·e → lien ignoré.
+- Sur le web, `detectSessionInUrl` échange le `?code=` tout seul.
+
+## Déconnexion (Réglages > Compte)
+
+Rien du compte ne doit survivre pour le suivant sur le même téléphone :
+1. la file de sync est d'abord envoyée (`flush()` attendu, 10 s max ; un
+   `flush()` appelé pendant un autre renvoie la promesse en cours) ; s'il
+   reste des écritures, confirmation « N modifications non synchronisées
+   seront perdues » ;
+2. `AuthContext.signOut()` retire la ligne `device_tokens` de CET appareil
+   (jeton FCM courant, avant `auth.signOut` : RLS exige la session ;
+   best-effort, 5 s max) — sinon les push des listes partagées de l'ancien
+   compte continuaient d'arriver ici ;
+3. `auth.signOut({ scope: 'local' })` (les autres appareils du compte
+   restent connectés ; hors ligne, supabase-js retire quand même la session
+   locale — sauf jeton expiré impossible à rafraîchir : `getSession()`
+   renvoie alors une erreur, rien n'est nettoyé et un message invite à
+   réessayer avec une connexion) ;
+4. une fois la session partie : file vidée (`clearQueue` — écrite avec
+   l'ancien `last_modified_by`, RLS la refuserait), `queryClient.clear()`
+   (`['lists']` n'a pas d'id d'utilisateur : le compte suivant voyait les
+   anciennes listes jusqu'à 30 s), préférence de liste du widget effacée,
+   `WidgetBridge.clearSnapshot()` (widget sur son écran d'attente, push
+   ignorés, voir plus haut).
 
 ## Catégories (listes et articles)
 
@@ -209,6 +304,17 @@ une autre liste permettait de la rejoindre via `accept_invite`). Les
 écritures de la file de sync renvoient la ligne complète avec le même
 `owner_id` : seule une vraie modification est refusée.
 
+Supprimer une liste (`useLists.ts#deleteList`, articles supprimés en
+cascade) : bouton affiché au/à la propriétaire seulement (policy
+`lists_delete`), après confirmation (`ConfirmDialog`), réseau obligatoire
+(pas de file de sync). Un DELETE filtré par RLS ne renvoie **aucune erreur**
+(204, 0 ligne) : d'où le `.select('id')` — 0 ligne → message d'erreur et
+liste remise en cache, sauf si sa création attendait encore dans la file
+(liste créée hors ligne : suppression purement locale via `discard`).
+Après suppression, les écritures encore en file pour la liste et ses
+articles sont retirées : une ligne complète absente du serveur serait
+réinsérée par `flush()` (liste ressuscitée).
+
 ## Imports externes (`mago://import`)
 
 - Lien `mago://import?data=<base64url(JSON)>` (ou payload en dernier segment
@@ -218,7 +324,19 @@ une autre liste permettait de la rejoindre via `accept_invite`). Les
 - Réception dans `ImportContext` : `App.getLaunchUrl()` (démarrage à froid)
   + `appUrlOpen` (app déjà ouverte, activité `singleTask`) ; un doublon de la
   même URL dans les 3 s est ignoré. Le listener de `AuthContext` reçoit aussi
-  ces URL et les ignore (pas de tokens) — et inversement.
+  ces URL et les ignore (pas un retour de connexion) — et inversement.
+- **Rejeu de l'URL de lancement** : `getLaunchUrl()` la renvoie tant que
+  l'activité vit (« Recharger l'app »), et Android recrée l'activité avec
+  son intent d'origine après la mort du processus (retour par les récents)
+  — Capacitor la relivre alors aussi en `appUrlOpen` (événement retenu).
+  L'import était réappliqué (doublons, quantités additionnées deux fois).
+  `handledLinks.ts` mémorise (Preferences, 50 dernières) l'empreinte des
+  imports **traités** (appliqués, annulés ou refusés — pas un écran de
+  confirmation jamais validé) ; un lien déjà traité livré **au lancement**
+  (`getLaunchUrl`, ou `appUrlOpen` dans les 5 s qui suivent l'abonnement)
+  est ignoré. Un lien reçu app déjà ouverte passe toujours : renvoyer
+  volontairement le même import reste possible, sauf s'il relance l'app à
+  froid (indiscernable d'un rejeu).
 - Écritures via la file de sync (`useApplyImport.ts`) : marche hors ligne.
   Fusion = même nom + même unité (casse/accents ignorés), seulement avec un
   article non coché. Annuler = soft-delete des ajouts + restauration des
@@ -227,6 +345,23 @@ une autre liste permettait de la rejoindre via `accept_invite`). Les
 - Réglage "Importer sans confirmer" : n'agit que si listes et types de liste
   sont chargés, sinon retombe sur l'écran de confirmation (pas de doublon de
   liste créé à l'aveugle).
+- Plusieurs imports : **file** dans `ImportContext` (`pending` = le premier,
+  `clearPending()` passe au suivant). Un import reçu pendant qu'un autre est
+  affiché ou appliqué attend son tour (en-tête « N autre(s) en attente ») ;
+  avant, il remplaçait l'écran en cours, ou restait invisible et jamais
+  appliqué pendant un import sans confirmation (`ImportHost` relance son
+  effet à la fin de chaque import automatique).
+
+## Mise à jour in-app, barre d'état
+
+- `useAppUpdate.ts` ne propose une release que si son tag est **plus
+  récent** (`version.ts` : tags `v<package.json>-<n° de run CI>` comparés
+  numériquement partie par partie, n° de build compris) — un simple `!==`
+  proposait aussi une version plus ancienne. `ApkInstallerPlugin` pose des
+  délais de connexion (15 s) et de lecture (30 s).
+- Icônes de la barre d'état (`statusBar.ts`) : style selon le thème
+  **effectif** (préférence de Réglages, sinon système), réappliqué à chaque
+  changement de l'un ou de l'autre.
 
 ## Git
 

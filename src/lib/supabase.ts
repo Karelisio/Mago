@@ -12,5 +12,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // Lien magique en PKCE : le lien ne contient qu'un code, échangé contre
+    // une session avec le code_verifier gardé sur l'appareil qui l'a demandé
+    // (AuthContext) — plus de jetons en clair dans l'URL.
+    flowType: 'pkce',
   },
 });

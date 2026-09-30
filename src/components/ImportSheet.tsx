@@ -36,13 +36,17 @@ function defaultListType(listTypes: string[]) {
 // Monté par App.tsx uniquement quand une session existe : un import reçu
 // avant connexion reste en attente et s'affiche juste après.
 export function ImportHost() {
-  const { pending, pendingId, clearPending, showSnackbar } = useImport();
+  const { pending, pendingId, queuedCount, clearPending, showSnackbar } = useImport();
   const lists = useLists();
   const listCategories = useListCategories();
   const itemCategories = useItemCategories();
   const { applyImport } = useApplyImport();
   const navigate = useNavigate();
+  // Garde synchrone (un seul import sans confirmation à la fois) + compteur
+  // qui relance l'effet quand il se termine : un import arrivé pendant ce
+  // temps attend dans la file (ImportContext) et doit être traité ensuite.
   const autoRunning = useRef(false);
+  const [autoRunsDone, setAutoRunsDone] = useState(0);
 
   // On n'attend jamais indéfiniment les listes : hors ligne sans cache la
   // requête reste en pause, et un serveur injoignable peut la faire
@@ -102,9 +106,10 @@ export function ImportHost() {
       knownCategories,
     }).finally(() => {
       autoRunning.current = false;
+      setAutoRunsDone((n) => n + 1);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, autoConfirm, listsReady]);
+  }, [pending, autoConfirm, listsReady, autoRunsDone]);
 
   if (!pending || autoConfirm) return null;
 
@@ -112,7 +117,10 @@ export function ImportHost() {
     return (
       <div className="import-sheet" role="dialog" aria-modal="true" aria-labelledby="import-title">
         <div className="import-sheet-header">
-          <p className="top-bar-subtitle">Import depuis {pending.source}</p>
+          <p className="top-bar-subtitle">
+            Import depuis {pending.source}
+            {queuedCount > 0 && ` · ${queuedCount} autre${queuedCount > 1 ? 's' : ''} en attente`}
+          </p>
           <h2 id="import-title">{articles(pending.items.length)} à ajouter</h2>
         </div>
         <div className="import-sheet-body">
@@ -131,6 +139,7 @@ export function ImportHost() {
     <ImportSheet
       key={pendingId}
       payload={pending}
+      queuedCount={queuedCount}
       lists={listRows}
       listTypes={listTypes}
       knownCategories={knownCategories}
@@ -142,6 +151,7 @@ export function ImportHost() {
 
 interface ImportSheetProps {
   payload: ImportPayload;
+  queuedCount: number;
   lists: ListRow[];
   listTypes: string[];
   knownCategories: string[];
@@ -149,7 +159,7 @@ interface ImportSheetProps {
   onConfirm: (args: ApplyImportArgs) => Promise<void>;
 }
 
-function ImportSheet({ payload, lists, listTypes, knownCategories, onCancel, onConfirm }: ImportSheetProps) {
+function ImportSheet({ payload, queuedCount, lists, listTypes, knownCategories, onCancel, onConfirm }: ImportSheetProps) {
   const initialTarget = useMemo(
     () => pickDefaultTarget(lists, payload.listName, getLocalPref(LAST_IMPORT_LIST_KEY), `Import ${payload.source}`),
     // Calculé une fois à l'ouverture : ne pas changer la cible sous les doigts
@@ -230,7 +240,10 @@ function ImportSheet({ payload, lists, listTypes, knownCategories, onCancel, onC
   return (
     <div className="import-sheet" role="dialog" aria-modal="true" aria-labelledby="import-title">
       <div className="import-sheet-header">
-        <p className="top-bar-subtitle">Import depuis {payload.source}</p>
+        <p className="top-bar-subtitle">
+          Import depuis {payload.source}
+          {queuedCount > 0 && ` · ${queuedCount} autre${queuedCount > 1 ? 's' : ''} en attente`}
+        </p>
         <h2 id="import-title">{articles(payload.items.length)} à ajouter</h2>
       </div>
 

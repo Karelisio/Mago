@@ -407,3 +407,82 @@ select {
   cursor: pointer;
   padding: 4px 8px;
 }
+
+/* Dialogue de confirmation Material 3 (ConfirmDialog.tsx) : au-dessus de
+   l'écran d'import et de la snackbar. */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px 24px 16px;
+  border-radius: 28px;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dialog h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.dialog-message {
+  font-size: 14px;
+  color: var(--md-on-surface-variant);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.btn-text.btn-danger {
+  color: var(--md-error);
+  font-weight: 600;
+}
+
+/* Saisie refusée (ex. quantité illisible) : message sous le champ. */
+input.input-error {
+  border-color: var(--md-error);
+}
+
+.field-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--md-error);
+}
+
+/* Journal des erreurs de synchronisation (Réglages). */
+.sync-log {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.sync-log li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--md-outline);
+  word-break: break-word;
+}
+
+.sync-log-meta {
+  color: var(--md-on-surface-variant);
+}

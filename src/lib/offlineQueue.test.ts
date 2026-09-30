@@ -13,11 +13,15 @@ vi.mock('@capacitor/preferences', () => ({
 }));
 
 import {
+  countsAsFailedAttempt,
   enqueueEntry,
   entryVersion,
+  isPermanentSyncError,
+  MAX_SYNC_ATTEMPTS,
   planFlushEntry,
   readEntry,
   readQueue,
+  recordFailedAttempt,
   removeEntry,
   removeEntryIfUnchanged,
   type QueueEntry,
@@ -40,17 +44,47 @@ beforeEach(() => {
 });
 
 describe('enqueueEntry', () => {
-  it('remplace la version en attente de la même ligne et la place en fin de file', async () => {
+  it('remplace la version en attente de la même ligne sur place (même position)', async () => {
     await enqueueEntry(entry('a', 'v1', {}, { completed: true }));
     await enqueueEntry(entry('b', 'v2'));
     const next = await enqueueEntry(entry('a', 'v3', {}, { completed: false }));
 
     expect(next.map((q) => [q.row.id, q.version])).toEqual([
-      ['b', 'v2'],
       ['a', 'v3'],
+      ['b', 'v2'],
     ]);
-    expect(next[1].row.completed).toBe(false);
+    expect(next[0].row.completed).toBe(false);
     expect(await readQueue()).toEqual(next);
+  });
+
+  it('une liste créée hors ligne puis renommée reste devant ses articles', async () => {
+    const list = (version: string, name: string): QueueEntry => ({ ...entry('L', version, {}, { name }), table: 'lists' });
+    await enqueueEntry(list('v1', 'Courses'));
+    await enqueueEntry(entry('i1', 'v2', {}, { list_id: 'L' }));
+    await enqueueEntry(entry('i2', 'v3', {}, { list_id: 'L' }));
+    const next = await enqueueEntry(list('v4', 'Courses du samedi'));
+
+    expect(next.map((q) => [q.table, q.row.id])).toEqual([
+      ['lists', 'L'],
+      ['items', 'i1'],
+      ['items', 'i2'],
+    ]);
+    expect(next[0]).toMatchObject({ version: 'v4', row: { name: 'Courses du samedi' } });
+  });
+
+  it('ajoute en fin de file une ligne pas encore en attente', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const next = await enqueueEntry(entry('b', 'v2'));
+    expect(next.map((q) => q.row.id)).toEqual(['a', 'b']);
+  });
+
+  it('ne garde qu’une entrée par ligne, à la première position (doublon hérité)', async () => {
+    store.set(QUEUE_KEY, JSON.stringify([entry('a', 'v1'), entry('b', 'v2'), entry('a', 'v3')]));
+    const next = await enqueueEntry(entry('a', 'v4'));
+    expect(next.map((q) => [q.row.id, q.version])).toEqual([
+      ['a', 'v4'],
+      ['b', 'v2'],
+    ]);
   });
 
   it('ne confond pas deux tables pour un même id', async () => {
@@ -188,5 +222,88 @@ describe('planFlushEntry', () => {
     expect(planFlushEntry(local, { updated_at: ownWrite }, ownWrite)).toEqual({ kind: 'update', row: local.row });
     // Quelqu'un d'autre a écrit depuis notre écriture : comparaison normale.
     expect(planFlushEntry(local, { updated_at: '2026-01-01T10:00:07+00:00' }, ownWrite)).toEqual({ kind: 'skip' });
+  });
+});
+
+const RLS = { code: '42501', message: 'new row violates row-level security policy for table "items"' };
+const FK = { code: '23503', message: 'insert or update on table "items" violates foreign key constraint "items_list_id_fkey"' };
+
+describe('échecs définitifs (attempts)', () => {
+  it('ne compte que les erreurs Postgres permanentes (FK, doublon, policy RLS)', () => {
+    expect(isPermanentSyncError(FK)).toBe(true);
+    expect(isPermanentSyncError({ code: '23505', message: 'duplicate key value violates unique constraint' })).toBe(true);
+    expect(isPermanentSyncError(RLS)).toBe(true);
+    expect(
+      isPermanentSyncError({ code: '42501', message: 'new row violates row-level security policy (USING expression) for table "lists"' }),
+    ).toBe(true);
+    // GRANT manquant (corrigé par une migration) : pas un refus de policy.
+    expect(isPermanentSyncError({ code: '42501', message: 'permission denied for table items' })).toBe(false);
+    // Réseau (pas de code), schéma pas encore migré, JWT expiré, serveur : jamais.
+    for (const code of [undefined, null, '', 'PGRST204', 'PGRST301', '42703', '40001', 'XX000', '57014']) {
+      expect(isPermanentSyncError({ code, message: 'x' })).toBe(false);
+    }
+    expect(isPermanentSyncError(new TypeError('Failed to fetch'))).toBe(false);
+    expect(isPermanentSyncError(null)).toBe(false);
+  });
+
+  it('ne compte pas l’échec d’un article dont la liste attend encore son envoi', () => {
+    const item = entry('i1', 'v1', {}, { list_id: 'L' });
+    const list: QueueEntry = { ...entry('L', 'v0'), table: 'lists' };
+    expect(countsAsFailedAttempt(item, RLS, [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, FK, [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, FK, [item])).toBe(true);
+    expect(countsAsFailedAttempt(list, RLS, [list, item])).toBe(true);
+  });
+
+  it(`abandonne l’entrée au ${MAX_SYNC_ATTEMPTS}e échec définitif de la même version`, async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    await enqueueEntry(entry('b', 'v2'));
+    const sent = (await readEntry('items', 'a'))!;
+
+    let result = await recordFailedAttempt(sent, 'v1', RLS);
+    expect(result).toMatchObject({ counted: true, dropped: false });
+    expect((await readEntry('items', 'a'))?.attempts).toBe(1);
+    result = await recordFailedAttempt(sent, 'v1', FK);
+    expect((await readEntry('items', 'a'))?.attempts).toBe(2);
+    result = await recordFailedAttempt(sent, 'v1', RLS);
+    expect(result).toMatchObject({ counted: true, dropped: true });
+    expect(result.queue.map((q) => q.row.id)).toEqual(['b']);
+    expect(await readQueue()).toEqual(result.queue);
+  });
+
+  it('une erreur réseau ou non définitive ne compte jamais', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const sent = (await readEntry('items', 'a'))!;
+    for (let i = 0; i < 5; i++) {
+      expect((await recordFailedAttempt(sent, 'v1', { code: '', message: 'TypeError: Failed to fetch' })).counted).toBe(false);
+      expect((await recordFailedAttempt(sent, 'v1', new TypeError('Failed to fetch'))).counted).toBe(false);
+    }
+    expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
+  });
+
+  it('une nouvelle version repart de zéro et n’est pas touchée par l’échec de l’ancienne', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const sent = (await readEntry('items', 'a'))!;
+    await recordFailedAttempt(sent, 'v1', RLS);
+    await recordFailedAttempt(sent, 'v1', RLS);
+    // Modifiée pendant l'envoi : v2 remplace v1 (sans attempts).
+    await enqueueEntry(entry('a', 'v2'));
+    const result = await recordFailedAttempt(sent, 'v1', RLS);
+    expect(result).toMatchObject({ counted: false, dropped: false });
+    expect(await readEntry('items', 'a')).toMatchObject({ version: 'v2' });
+    expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
+  });
+
+  it('compte depuis 0 une entrée écrite par le widget (sans attempts ni version)', async () => {
+    const fromWidget: QueueEntry = {
+      table: 'items',
+      row: { id: 'w', list_id: 'L', completed: true, last_modified_by: 'u', updated_at: '2026-01-01T10:00:00.000Z' },
+      enqueuedAt: '2026-01-01T10:00:01.000Z',
+      patch: true,
+    };
+    store.set(QUEUE_KEY, JSON.stringify([fromWidget]));
+    const result = await recordFailedAttempt(fromWidget, entryVersion(fromWidget), RLS);
+    expect(result).toMatchObject({ counted: true, dropped: false });
+    expect((await readEntry('items', 'w'))?.attempts).toBe(1);
   });
 });

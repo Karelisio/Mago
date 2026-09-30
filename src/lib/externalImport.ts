@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ItemRow, ListRow } from './database.types';
+import { formatQuantityInput } from './quantity';
 
 // Imports externes (ex. une app de recettes) reçus par deep link :
 //   mago://import?data=<base64url(JSON)>
@@ -278,6 +279,7 @@ export function pickDefaultTarget(
   return { kind: 'new', name: fallbackName };
 }
 
+// Affichage à la française (1,5 kg), comme la liste (ListDetail).
 export function formatQuantity(qty: number | null, unit: string | null): string {
-  return [qty, unit].filter((v) => v !== null && v !== '').join(' ');
+  return [formatQuantityInput(qty), unit].filter((v) => v !== null && v !== '').join(' ');
 }

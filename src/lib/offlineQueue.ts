@@ -21,6 +21,41 @@ export interface QueueEntry {
   // elle est abandonnée si la ligne n'existe pas côté serveur (un insert
   // serait incomplet).
   patch?: boolean;
+  // Échecs définitifs déjà constatés pour CETTE version (voir
+  // recordFailedAttempt). Absent = 0 : entrées du widget ou d'une ancienne
+  // version de l'app. Remis à zéro à chaque nouvelle version (nouvelle entrée
+  // côté JS, champ retiré par la fusion du widget).
+  attempts?: number;
+}
+
+// Au MAX_SYNC_ATTEMPTS-ième échec définitif d'une même version, l'entrée est
+// abandonnée (journalisée) : sinon elle restait en file à vie, renvoyée à
+// chaque flush (« En attente (n) » permanent).
+export const MAX_SYNC_ATTEMPTS = 3;
+
+// Erreur Postgres qui se reproduira à l'identique en renvoyant la même
+// ligne : contrainte d'intégrité (classe 23 : clé étrangère 23503, doublon
+// 23505…) ou refus d'une policy RLS (42501 « row-level security » — pas un
+// 42501 « permission denied » dû à un GRANT manquant, qu'une migration
+// corrigera). Une erreur réseau (pas de code Postgres) ou de schéma
+// (PGRST…) ne compte jamais.
+export function isPermanentSyncError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const { code, message } = err as { code?: unknown; message?: unknown };
+  if (typeof code !== 'string') return false;
+  if (code.startsWith('23')) return true;
+  return code === '42501' && typeof message === 'string' && /row-level security/i.test(message);
+}
+
+// Un article dont la liste attend encore son propre envoi (créée hors ligne)
+// échoue en FK/RLS tant qu'elle n'est pas arrivée : ça ne compte pas.
+export function countsAsFailedAttempt(entry: QueueEntry, err: unknown, queue: QueueEntry[]): boolean {
+  if (!isPermanentSyncError(err)) return false;
+  const listId = entry.row.list_id;
+  if (entry.table === 'items' && typeof listId === 'string') {
+    return !queue.some((q) => q.table === 'lists' && q.row.id === listId);
+  }
+  return true;
 }
 
 export function entryVersion(entry: QueueEntry): string {
@@ -65,11 +100,23 @@ export function readEntry(table: QueueTable, id: string): Promise<QueueEntry | u
   return withLock(async () => (await readQueueRaw()).find((q) => isSameRow(q, table, id)));
 }
 
+// Une nouvelle version d'une ligne déjà en file la remplace SUR PLACE : la
+// file est envoyée dans l'ordre, et une liste créée hors ligne puis
+// renommée/déplacée doit rester devant ses articles (sinon leur insert
+// échoue, FK/RLS, tant que la liste n'existe pas côté serveur). Même règle
+// côté widget (MagoWidgetProvider.enqueueForSync).
 export function enqueueEntry(entry: QueueEntry): Promise<QueueEntry[]> {
   return withLock(async () => {
     const queue = await readQueueRaw();
-    const withoutStale = queue.filter((q) => !isSameRow(q, entry.table, entry.row.id));
-    const next = [...withoutStale, entry];
+    const index = queue.findIndex((q) => isSameRow(q, entry.table, entry.row.id));
+    const next =
+      index === -1
+        ? [...queue, entry]
+        : [
+            ...queue.slice(0, index),
+            entry,
+            ...queue.slice(index + 1).filter((q) => !isSameRow(q, entry.table, entry.row.id)),
+          ];
     await writeQueueRaw(next);
     return next;
   });
@@ -100,6 +147,30 @@ export function removeEntryIfUnchanged(
     if (next.length === queue.length) return { removed: false, queue };
     await writeQueueRaw(next);
     return { removed: true, queue: next };
+  });
+}
+
+// Compte un échec de la version envoyée (si countsAsFailedAttempt) ; au
+// MAX_SYNC_ATTEMPTS-ième, l'entrée est retirée (dropped). Une version plus
+// récente mise en file pendant l'envoi n'est pas concernée (elle repart de 0).
+export function recordFailedAttempt(
+  entry: QueueEntry,
+  version: string,
+  err: unknown,
+): Promise<{ counted: boolean; dropped: boolean; queue: QueueEntry[] }> {
+  return withLock(async () => {
+    const queue = await readQueueRaw();
+    const index = queue.findIndex((q) => isSameRow(q, entry.table, entry.row.id) && entryVersion(q) === version);
+    if (index === -1 || !countsAsFailedAttempt(queue[index], err, queue)) {
+      return { counted: false, dropped: false, queue };
+    }
+    const attempts = (Number(queue[index].attempts) || 0) + 1;
+    const dropped = attempts >= MAX_SYNC_ATTEMPTS;
+    const next = dropped
+      ? queue.filter((_, i) => i !== index)
+      : queue.map((q, i) => (i === index ? { ...q, attempts } : q));
+    await writeQueueRaw(next);
+    return { counted: true, dropped, queue: next };
   });
 }
 

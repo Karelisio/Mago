@@ -23,6 +23,9 @@ interface WidgetSnapshot {
 
 interface WidgetBridgePlugin {
   updateSnapshot(snapshot: WidgetSnapshot): Promise<void>;
+  // Déconnexion : efface l'aperçu (le widget repasse sur son écran d'attente)
+  // et fait ignorer les push FCM jusqu'au prochain updateSnapshot().
+  clearSnapshot(): Promise<void>;
 }
 
 export const WidgetBridge = registerPlugin<WidgetBridgePlugin>('WidgetBridge');
