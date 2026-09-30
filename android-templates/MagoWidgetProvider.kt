@@ -166,10 +166,13 @@ class MagoWidgetProvider : AppWidgetProvider() {
     }
 
     // Nouvelle version à chaque mise en file : un flush JS en cours d'envoi de
-    // l'ancienne version ne retirera pas celle-ci.
+    // l'ancienne version ne retirera pas celle-ci. Le compteur d'échecs
+    // définitifs (attempts, voir offlineQueue.ts) repart de zéro, comme pour
+    // une nouvelle version mise en file côté JS.
     private fun stampNewVersion(entry: JSONObject) {
         entry.put("enqueuedAt", isoNow())
         entry.put("version", UUID.randomUUID().toString())
+        entry.remove("attempts")
     }
 
     private fun isoNow(): String {

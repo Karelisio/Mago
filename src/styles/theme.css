@@ -465,3 +465,24 @@ input.input-error {
   font-size: 12px;
   color: var(--md-error);
 }
+
+/* Journal des erreurs de synchronisation (Réglages). */
+.sync-log {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.sync-log li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--md-outline);
+  word-break: break-word;
+}
+
+.sync-log-meta {
+  color: var(--md-on-surface-variant);
+}

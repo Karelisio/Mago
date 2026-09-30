@@ -11,6 +11,8 @@ import {
   clearQueue,
   entryVersion,
   planFlushEntry,
+  recordFailedAttempt,
+  MAX_SYNC_ATTEMPTS,
   type QueueEntry,
   type QueueTable,
 } from '../lib/offlineQueue';
@@ -40,6 +42,14 @@ function describeError(err: unknown): string {
   return String(err);
 }
 
+function errorCode(err: unknown): string | undefined {
+  if (err && typeof err === 'object' && 'code' in err) {
+    const { code } = err as { code?: unknown };
+    return typeof code === 'string' ? code : undefined;
+  }
+  return undefined;
+}
+
 function rowKey(table: QueueTable, id: string) {
   return `${table}:${id}`;
 }
@@ -56,16 +66,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const sending = useRef<{ key: string; reachedServer: Promise<boolean> } | null>(null);
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  // Session courante pour flush(), dont les listeners (online,
+  // appStateChange) gardent la closure du premier rendu. Sans session, les
+  // écritures seraient refusées par RLS (42501) et comptées comme échecs
+  // définitifs : flush() ne tourne donc jamais sans session.
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+  const userId = session?.user.id;
 
+  // Démarrage (session restaurée) ou connexion : la file a pu être remplie
+  // avant, par l'app ou par le widget.
   useEffect(() => {
-    readQueue().then((initial) => {
-      setQueue(initial);
-      if (initial.length > 0 && navigator.onLine) {
+    readQueue().then((stored) => {
+      setQueue(stored);
+      if (userId && stored.length > 0 && navigator.onLine) {
         void flush();
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const onOnline = () => {
@@ -144,7 +163,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       pendingFlushRequested.current = true;
       return;
     }
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || !sessionRef.current) return;
     flushing.current = true;
     // Requêtes React Query à rafraîchir, invalidées une seule fois en fin de
     // flush plutôt qu'après chaque entrée envoyée.
@@ -160,6 +179,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             setIsOnline(false);
             return;
           }
+          if (!sessionRef.current) return;
 
           // Relue juste avant l'envoi : depuis la lecture du lot, l'entrée a pu
           // être annulée (discard) — on la saute — ou remplacée par une version
@@ -209,7 +229,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
                 entry.row.id,
                 'Patch abandonné : ligne absente du serveur',
                 undefined,
-                session?.user.id,
+                sessionRef.current?.user.id,
               );
             }
             reachedServer = action.kind !== 'drop';
@@ -234,11 +254,27 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             }
             // On laisse cette entrée en queue pour un futur essai, mais on continue
             // les autres : une erreur isolée (ex. liste pas encore synchronisée pour
-            // un de ses articles) ne doit pas bloquer le reste de la queue.
+            // un de ses articles) ne doit pas bloquer le reste de la queue. Une
+            // erreur définitive (FK, RLS…) répétée MAX_SYNC_ATTEMPTS fois fait
+            // abandonner l'entrée (voir recordFailedAttempt).
             const message = describeError(err);
             const rowOwnerId = (entry.row.owner_id ?? entry.row.added_by) as string | undefined;
             console.error('Sync flush failed for entry', entry, err);
-            void logSyncError(entry.table, entry.row.id, message, rowOwnerId, session?.user.id);
+            let dropped = false;
+            try {
+              const result = await recordFailedAttempt(entry, version, errorCode(err));
+              dropped = result.dropped;
+              setQueue(result.queue);
+            } catch {
+              // File illisible : l'entrée sera simplement retentée.
+            }
+            void logSyncError(
+              entry.table,
+              entry.row.id,
+              dropped ? `Abandonnée après ${MAX_SYNC_ATTEMPTS} échecs : ${message}` : message,
+              rowOwnerId,
+              sessionRef.current?.user.id,
+            );
           } finally {
             sending.current = null;
             settle(reachedServer);

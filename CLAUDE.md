@@ -162,6 +162,18 @@ dédié (un script par concern, pas un fourre-tout).
   - `patch: true` : jamais inséré. Ligne absente côté serveur → entrée
     abandonnée (journalisée via `logSyncError`) ; sinon `update()` des
     seules colonnes du patch.
+  - `attempts` (optionnel, absent = 0) : échecs **définitifs** de cette
+    version — code Postgres de classe 23 (FK 23503, doublon 23505…) ou RLS
+    42501, voir `isPermanentSyncError`. Au 3e (`MAX_SYNC_ATTEMPTS`),
+    l'entrée est retirée et journalisée (« Abandonnée après 3 échecs »).
+    Une erreur réseau, serveur ou de schéma (PGRST…) ne compte jamais, ni
+    l'échec d'un article dont la liste attend encore son envoi. Remis à
+    zéro à chaque nouvelle version (nouvelle entrée côté JS ; la fusion du
+    widget retire le champ). `flush()` ne tourne jamais sans session (sinon
+    RLS refuserait tout et ferait abandonner des écritures valides).
+- Réglages > Synchronisation : nombre d'écritures en attente, « Vider la
+  file » (après confirmation, `resetQueue`) et journal des erreurs d'envoi
+  (`syncErrorLog.ts`, 20 dernières).
 - Le trigger `set_updated_at` réécrit `updated_at` à l'heure **serveur** à
   chaque UPDATE : `flush()` mémorise celui renvoyé par ses propres UPDATE
   pour ne pas prendre sa propre écriture pour une modification plus récente

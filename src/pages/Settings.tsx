@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSync } from '../contexts/SyncContext';
 import { useInvites } from '../hooks/useInvites';
 import { useLists } from '../hooks/useLists';
 import { usePartnership } from '../hooks/usePartnership';
@@ -7,7 +8,10 @@ import { useListCategories, useItemCategories } from '../hooks/useCategories';
 import { useWidgetListId, setWidgetListId } from '../hooks/useWidgetListPref';
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme';
 import { getLocalPref, setLocalPref, IMPORT_AUTO_CONFIRM_KEY } from '../lib/localPref';
+import { clearSyncErrors, readSyncErrors, type SyncErrorEntry } from '../lib/syncErrorLog';
+import { MAX_SYNC_ATTEMPTS } from '../lib/offlineQueue';
 import { MagoIcon } from '../components/MagoIcon';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 
 const THEME_LABELS: Record<ThemePreference, string> = {
@@ -58,6 +62,92 @@ function ImportPrefs() {
         Les articles envoyés par une autre app (lien mago://import) sont ajoutés directement à la liste
         demandée, fusionnés avec l'existant. Un bouton « Annuler » reste proposé juste après.
       </p>
+    </div>
+  );
+}
+
+function modifications(n: number) {
+  return `${n} modification${n > 1 ? 's' : ''}`;
+}
+
+function formatLogDate(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// File de sync hors-ligne : état, purge manuelle (après confirmation) et
+// journal des erreurs d'envoi (syncErrorLog.ts, 20 dernières).
+function SyncSettings() {
+  const { pendingCount, resetQueue } = useSync();
+  const [errors, setErrors] = useState<SyncErrorEntry[]>([]);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  function reloadErrors() {
+    void readSyncErrors().then(setErrors);
+  }
+
+  // Relu à chaque envoi (le nombre en attente change) ; le journal est aussi
+  // relu à l'ouverture du détail.
+  useEffect(reloadErrors, [pendingCount]);
+
+  async function handleReset() {
+    await resetQueue();
+    setConfirmReset(false);
+  }
+
+  async function handleClearLog() {
+    await clearSyncErrors();
+    setErrors([]);
+  }
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{ margin: 0 }}>
+        {pendingCount === 0
+          ? 'Toutes les modifications sont synchronisées.'
+          : `${modifications(pendingCount)} en attente d’envoi.`}
+      </p>
+      <p style={{ fontSize: 12, color: 'var(--md-on-surface-variant)', margin: 0 }}>
+        Une modification refusée {MAX_SYNC_ATTEMPTS} fois par le serveur (liste supprimée, accès retiré…) est
+        abandonnée et notée dans le journal.
+      </p>
+      {pendingCount > 0 && (
+        <button className="btn-text btn-danger" style={{ alignSelf: 'flex-start' }} onClick={() => setConfirmReset(true)}>
+          Vider la file
+        </button>
+      )}
+      <details onToggle={(e) => e.currentTarget.open && reloadErrors()}>
+        <summary style={{ fontSize: 14, cursor: 'pointer' }}>Journal des erreurs de synchronisation ({errors.length})</summary>
+        {errors.length === 0 ? (
+          <p style={{ fontSize: 12, margin: '8px 0 0' }}>Aucune erreur récente.</p>
+        ) : (
+          <>
+            <ul className="sync-log">
+              {errors.map((e, i) => (
+                <li key={`${e.at}-${i}`}>
+                  <span className="sync-log-meta">
+                    {formatLogDate(e.at)} · {e.table} {e.rowId.slice(0, 8)}
+                  </span>
+                  {e.message}
+                </li>
+              ))}
+            </ul>
+            <button className="btn-text" style={{ alignSelf: 'flex-start' }} onClick={handleClearLog}>
+              Effacer le journal
+            </button>
+          </>
+        )}
+      </details>
+      {confirmReset && (
+        <ConfirmDialog
+          title="Vider la file de synchronisation ?"
+          message={`${modifications(pendingCount)} pas encore envoyée${pendingCount > 1 ? 's' : ''} au serveur ${pendingCount > 1 ? 'seront perdues' : 'sera perdue'} définitivement.`}
+          confirmLabel="Vider"
+          destructive
+          onConfirm={handleReset}
+          onCancel={() => setConfirmReset(false)}
+        />
+      )}
     </div>
   );
 }
@@ -186,6 +276,9 @@ export function Settings() {
 
       <h3>Import</h3>
       <ImportPrefs />
+
+      <h3>Synchronisation</h3>
+      <SyncSettings />
 
       <h3>Catégories de listes</h3>
       <CategoryManager

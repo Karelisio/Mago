@@ -13,11 +13,15 @@ vi.mock('@capacitor/preferences', () => ({
 }));
 
 import {
+  countsAsFailedAttempt,
   enqueueEntry,
   entryVersion,
+  isPermanentSyncError,
+  MAX_SYNC_ATTEMPTS,
   planFlushEntry,
   readEntry,
   readQueue,
+  recordFailedAttempt,
   removeEntry,
   removeEntryIfUnchanged,
   type QueueEntry,
@@ -218,5 +222,78 @@ describe('planFlushEntry', () => {
     expect(planFlushEntry(local, { updated_at: ownWrite }, ownWrite)).toEqual({ kind: 'update', row: local.row });
     // Quelqu'un d'autre a écrit depuis notre écriture : comparaison normale.
     expect(planFlushEntry(local, { updated_at: '2026-01-01T10:00:07+00:00' }, ownWrite)).toEqual({ kind: 'skip' });
+  });
+});
+
+describe('échecs définitifs (attempts)', () => {
+  it('ne compte que les erreurs Postgres permanentes (FK, doublon, RLS)', () => {
+    expect(isPermanentSyncError('23503')).toBe(true);
+    expect(isPermanentSyncError('23505')).toBe(true);
+    expect(isPermanentSyncError('42501')).toBe(true);
+    // Réseau (pas de code), schéma pas encore migré, JWT expiré, serveur : jamais.
+    for (const code of [undefined, null, '', 'PGRST204', 'PGRST301', '42703', '40001', 'XX000', '57014']) {
+      expect(isPermanentSyncError(code)).toBe(false);
+    }
+  });
+
+  it('ne compte pas l’échec d’un article dont la liste attend encore son envoi', () => {
+    const item = entry('i1', 'v1', {}, { list_id: 'L' });
+    const list: QueueEntry = { ...entry('L', 'v0'), table: 'lists' };
+    expect(countsAsFailedAttempt(item, '42501', [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, '23503', [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, '23503', [item])).toBe(true);
+    expect(countsAsFailedAttempt(list, '42501', [list, item])).toBe(true);
+  });
+
+  it(`abandonne l’entrée au ${MAX_SYNC_ATTEMPTS}e échec définitif de la même version`, async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    await enqueueEntry(entry('b', 'v2'));
+    const sent = (await readEntry('items', 'a'))!;
+
+    let result = await recordFailedAttempt(sent, 'v1', '42501');
+    expect(result).toMatchObject({ counted: true, dropped: false });
+    expect((await readEntry('items', 'a'))?.attempts).toBe(1);
+    result = await recordFailedAttempt(sent, 'v1', '23503');
+    expect((await readEntry('items', 'a'))?.attempts).toBe(2);
+    result = await recordFailedAttempt(sent, 'v1', '42501');
+    expect(result).toMatchObject({ counted: true, dropped: true });
+    expect(result.queue.map((q) => q.row.id)).toEqual(['b']);
+    expect(await readQueue()).toEqual(result.queue);
+  });
+
+  it('une erreur réseau ou non définitive ne compte jamais', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const sent = (await readEntry('items', 'a'))!;
+    for (let i = 0; i < 5; i++) {
+      expect((await recordFailedAttempt(sent, 'v1', '')).counted).toBe(false);
+      expect((await recordFailedAttempt(sent, 'v1', undefined)).counted).toBe(false);
+    }
+    expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
+  });
+
+  it('une nouvelle version repart de zéro et n’est pas touchée par l’échec de l’ancienne', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const sent = (await readEntry('items', 'a'))!;
+    await recordFailedAttempt(sent, 'v1', '42501');
+    await recordFailedAttempt(sent, 'v1', '42501');
+    // Modifiée pendant l'envoi : v2 remplace v1 (sans attempts).
+    await enqueueEntry(entry('a', 'v2'));
+    const result = await recordFailedAttempt(sent, 'v1', '42501');
+    expect(result).toMatchObject({ counted: false, dropped: false });
+    expect(await readEntry('items', 'a')).toMatchObject({ version: 'v2' });
+    expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
+  });
+
+  it('compte depuis 0 une entrée écrite par le widget (sans attempts ni version)', async () => {
+    const fromWidget: QueueEntry = {
+      table: 'items',
+      row: { id: 'w', list_id: 'L', completed: true, last_modified_by: 'u', updated_at: '2026-01-01T10:00:00.000Z' },
+      enqueuedAt: '2026-01-01T10:00:01.000Z',
+      patch: true,
+    };
+    store.set(QUEUE_KEY, JSON.stringify([fromWidget]));
+    const result = await recordFailedAttempt(fromWidget, entryVersion(fromWidget), '42501');
+    expect(result).toMatchObject({ counted: true, dropped: false });
+    expect((await readEntry('items', 'w'))?.attempts).toBe(1);
   });
 });
