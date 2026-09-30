@@ -90,6 +90,11 @@ android-templates/      fichiers natifs Android custom (plugins Capacitor, widge
 scripts/                scripts Node réappliqués après chaque régénération de android/
 supabase/migrations/    schéma + RLS, une migration par évolution
 supabase/functions/     Edge Functions (notify-item-change : trigger → push FCM)
+vitrine/                projet autonome : page vitrine de tous les dépôts publics (GitHub Pages)
 ```
 
 Voir `CLAUDE.md` pour les détails d'architecture et les pièges déjà rencontrés.
+
+## Vitrine des projets (GitHub Pages)
+
+`vitrine/` est un projet indépendant de l'app (ses propres dépendances et tests) : une page qui présente tous les dépôts publics du compte, leurs releases et changelogs. Publiée par `.github/workflows/vitrine-pages.yml`. Voir [`vitrine/README.md`](vitrine/README.md).

@@ -1,0 +1,79 @@
+name: Vitrine (GitHub Pages)
+
+# Régénère vitrine/public/data.json depuis l'API GitHub puis publie le site :
+# à chaque push sur main, toutes les 6 heures, ou à la demande. Les PR qui
+# touchent la vitrine sont seulement construites (tests + données + build).
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'vitrine/**'
+      - '.github/workflows/vitrine-pages.yml'
+  schedule:
+    # Toutes les 6 h, à une minute décalée (l'heure pile est la plus chargée).
+    - cron: '17 */6 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: vitrine-${{ github.event_name == 'pull_request' && github.ref || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: vitrine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vitrine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Fetch GitHub data
+        run: npm run fetch-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build site
+        run: npm run build
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: vitrine/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

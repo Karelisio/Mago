@@ -228,6 +228,16 @@ une autre liste permettait de la rejoindre via `accept_invite`). Les
   sont chargés, sinon retombe sur l'écran de confirmation (pas de doublon de
   liste créé à l'aveugle).
 
+## Vitrine (`vitrine/`)
+
+Projet autonome, sans lien avec l'app : `package.json`, lockfile et tests
+propres (`cd vitrine && npm test`), déployé sur GitHub Pages par
+`.github/workflows/vitrine-pages.yml`. Le `test.include` de `vite.config.ts`
+à la racine limite Vitest à `src/` : sans lui, `npm test` de Mago
+ramasserait les tests de la vitrine, dont les dépendances ne sont pas
+installées en CI Android. Détails (palette M3, données, correctif postinstall
+de `@material/material-color-utilities`) dans `vitrine/README.md`.
+
 ## Git
 
 Cette branche (`claude/mago-shared-list-app-65gd2s`) est réutilisée d'une PR

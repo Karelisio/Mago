@@ -1,0 +1,672 @@
+{
+  "demo": true,
+  "generatedAt": "2026-09-30T07:00:00.000Z",
+  "source": null,
+  "profile": {
+    "login": "Karelisio",
+    "name": "Karelisio",
+    "avatarUrl": "https://github.com/Karelisio.png",
+    "htmlUrl": "https://github.com/Karelisio",
+    "bio": "Données de démonstration : lance « npm run fetch-data » (ou le workflow GitHub Actions) pour afficher tes vrais dépôts.",
+    "location": null,
+    "blog": null,
+    "company": null,
+    "followers": null
+  },
+  "repos": [
+    {
+      "name": "liste-partagee",
+      "fullName": "demo/liste-partagee",
+      "description": "Démo — listes partagées temps réel avec widget Android et mode hors-ligne.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 182000,
+        "Kotlin": 41000,
+        "CSS": 12000,
+        "PLpgSQL": 9000,
+        "HTML": 1200
+      },
+      "topics": [
+        "android",
+        "capacitor",
+        "supabase",
+        "material-you",
+        "offline-first",
+        "widget",
+        "react"
+      ],
+      "stars": 12,
+      "forks": 1,
+      "openIssues": 2,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-30T06:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "feat(widget) : cocher un article hors ligne",
+        "date": "2026-09-30T06:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 48,
+      "releases": [
+        {
+          "id": 1000,
+          "tag": "v1.4.0",
+          "name": "v1.4.0",
+          "publishedAt": "2026-09-30T03:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## ✨ Nouveautés\n* Widget écran d'accueil : cases à cocher **fonctionnelles**, même app fermée (#42)\n* Import depuis une autre app via `demo://import` — merci @contributeur !\n* Thème Material You dynamique dérivé du fond d'écran\n\n## 🐛 Corrections\n- [x] Plus d'écran blanc au retour en ligne\n- [x] Quantités fusionnées sans doublon\n\n| Appareil | Android | Statut |\n|---|---|---|\n| Pixel 8 | 15 | ✅ |\n| Galaxy S21 | 14 | ✅ |\n\n```bash\nadb install demo-release.apk\n```\n\n<details><summary>Détails techniques</summary>\n\nQueue de synchronisation versionnée (UUID par mise en file).\n</details>\n\n**Full Changelog**: https://github.com/demo/liste-partagee/compare/v1.3.0...v1.4.0",
+          "summary": "Widget écran d'accueil : cases à cocher fonctionnelles, même app fermée (#42) · Import depuis une autre app via demo://import — merci @contributeur ! · Thème Material You…",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "liste-partagee-1.4.0.apk",
+              "size": 6420000,
+              "downloads": 38,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            },
+            {
+              "name": "checksums.sha256",
+              "size": 180,
+              "downloads": 4,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1001,
+          "tag": "v1.3.1",
+          "name": "v1.3.1",
+          "publishedAt": "2026-09-24T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Correctif de synchronisation (#40)\n* Traductions\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Correctif de synchronisation (#40) · Traductions",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "liste-partagee-1.3.1.apk",
+              "size": 6380000,
+              "downloads": 51,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1002,
+          "tag": "v1.3.0",
+          "name": "v1.3.0",
+          "publishedAt": "2026-09-13T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Catégories personnalisables\n* Tri par position\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Catégories personnalisables · Tri par position",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "liste-partagee-1.3.0.apk",
+              "size": 6300000,
+              "downloads": 77,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1003,
+          "tag": "v1.2.0",
+          "name": "v1.2.0",
+          "publishedAt": "2026-08-21T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Invitations par e-mail\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Invitations par e-mail",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "liste-partagee-1.2.0.apk",
+              "size": 6100000,
+              "downloads": 64,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "recettes",
+      "fullName": "demo/recettes",
+      "description": "Démo — carnet de recettes qui envoie ses ingrédients vers la liste de courses.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "Kotlin",
+      "languages": {
+        "Kotlin": 220000,
+        "Java": 4000
+      },
+      "topics": [
+        "android",
+        "jetpack-compose",
+        "recettes"
+      ],
+      "stars": 7,
+      "forks": 0,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-29T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "fix: portions arrondies",
+        "date": "2026-09-29T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 3,
+      "releases": [
+        {
+          "id": 1004,
+          "tag": "v2.0.0-beta.2",
+          "name": "Beta 2 — Compose",
+          "publishedAt": "2026-09-29T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Nouvelle interface Compose\n* Mode cuisine plein écran\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Nouvelle interface Compose · Mode cuisine plein écran",
+          "prerelease": true,
+          "assets": [
+            {
+              "name": "recettes-2.0.0-beta.2.apk",
+              "size": 9800000,
+              "downloads": 9,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1005,
+          "tag": "v1.8.2",
+          "name": "v1.8.2",
+          "publishedAt": "2026-09-18T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Export PDF des recettes\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Export PDF des recettes",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "recettes-1.8.2.apk",
+              "size": 8900000,
+              "downloads": 132,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            },
+            {
+              "name": "recettes-1.8.2.aab",
+              "size": 8100000,
+              "downloads": 3,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1006,
+          "tag": "v1.8.0",
+          "name": "v1.8.0",
+          "publishedAt": "2026-08-26T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Minuteurs multiples\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Minuteurs multiples",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "recettes-1.8.0.apk",
+              "size": 8800000,
+              "downloads": 210,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "orbital",
+      "fullName": "demo/orbital",
+      "description": "Démo — petit jeu de gravité en Rust compilé en WebAssembly.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": "https://example.com",
+      "language": "Rust",
+      "languages": {
+        "Rust": 98000,
+        "JavaScript": 6000,
+        "HTML": 2000,
+        "GLSL": 3500
+      },
+      "topics": [
+        "gamedev",
+        "wasm",
+        "bevy"
+      ],
+      "stars": 31,
+      "forks": 3,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-27T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "perf: collisions en grille spatiale",
+        "date": "2026-09-27T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 2,
+      "releases": [
+        {
+          "id": 1007,
+          "tag": "v0.9.0",
+          "name": "v0.9.0",
+          "publishedAt": "2026-09-27T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Niveaux générés procéduralement\n* Manette supportée\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Niveaux générés procéduralement · Manette supportée",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "orbital-linux-x86_64.AppImage",
+              "size": 24000000,
+              "downloads": 18,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "name": "orbital-windows.exe",
+              "size": 21500000,
+              "downloads": 27,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "name": "orbital-macos.dmg",
+              "size": 23100000,
+              "downloads": 11,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        },
+        {
+          "id": 1008,
+          "tag": "v0.8.0",
+          "name": "v0.8.0",
+          "publishedAt": "2026-09-04T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Éditeur de niveaux\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Éditeur de niveaux",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "orbital-web.zip",
+              "size": 4200000,
+              "downloads": 40,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "terminal-theme",
+      "fullName": "demo/terminal-theme",
+      "description": "Démo — thème de terminal Material You généré depuis une image.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "Python",
+      "languages": {
+        "Python": 45000,
+        "Shell": 3000
+      },
+      "topics": [
+        "cli",
+        "material-you",
+        "theme"
+      ],
+      "stars": 54,
+      "forks": 6,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-21T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-09-21T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 1,
+      "releases": [
+        {
+          "id": 1009,
+          "tag": "v3.1.0",
+          "name": "v3.1.0",
+          "publishedAt": "2026-09-21T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Support de Ghostty\n* Palette 2025 (Expressive)\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Support de Ghostty · Palette 2025 (Expressive)",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "terminal_theme-3.1.0-py3-none-any.whl",
+              "size": 48000,
+              "downloads": 212,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            },
+            {
+              "name": "terminal_theme-3.1.0.tar.gz",
+              "size": 41000,
+              "downloads": 35,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "casse-briques",
+      "fullName": "demo/casse-briques",
+      "description": "Démo — casse-briques rétro jouable au clavier et au tactile.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": "https://example.com",
+      "language": "JavaScript",
+      "languages": {
+        "JavaScript": 38000,
+        "CSS": 5000,
+        "HTML": 3000
+      },
+      "topics": [
+        "game",
+        "canvas"
+      ],
+      "stars": 5,
+      "forks": 0,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-25T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-09-25T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 0,
+      "releases": []
+    },
+    {
+      "name": "notes",
+      "fullName": "demo/notes",
+      "description": "Démo — prise de notes Markdown chiffrée, synchronisée via WebDAV.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "Dart",
+      "languages": {
+        "Dart": 150000,
+        "Kotlin": 2000,
+        "Swift": 1500,
+        "C++": 9000,
+        "CMake": 1200
+      },
+      "topics": [
+        "flutter",
+        "markdown",
+        "e2ee"
+      ],
+      "stars": 18,
+      "forks": 2,
+      "openIssues": 5,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-28T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-09-28T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 1,
+      "releases": [
+        {
+          "id": 1010,
+          "tag": "v0.4.2",
+          "name": "v0.4.2",
+          "publishedAt": "2026-09-10T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Recherche plein texte\n* Pièces jointes\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Recherche plein texte · Pièces jointes",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "notes-0.4.2-universal.apk",
+              "size": 17500000,
+              "downloads": 45,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            },
+            {
+              "name": "notes-0.4.2-arm64-v8a.apk",
+              "size": 9200000,
+              "downloads": 60,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/vnd.android.package-archive"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "entrainement",
+      "fullName": "demo/entrainement",
+      "description": "Démo — programme de calisthénie à la maison avec minuteur et progression.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "TypeScript",
+      "languages": {
+        "TypeScript": 64000,
+        "CSS": 8000
+      },
+      "topics": [
+        "pwa",
+        "fitness"
+      ],
+      "stars": 2,
+      "forks": 0,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-09-15T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-09-15T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 1,
+      "releases": [
+        {
+          "id": 1011,
+          "tag": "v1.0.0",
+          "name": "v1.0.0",
+          "publishedAt": "2026-08-16T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "## Nouveautés\n* Première version publique 🎉\n\n**Full Changelog**: https://github.com/demo/projet/compare/v1.0.0...v1.1.0",
+          "summary": "Première version publique 🎉",
+          "prerelease": false,
+          "assets": [],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    },
+    {
+      "name": "dotfiles",
+      "fullName": "demo/dotfiles",
+      "description": null,
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "Shell",
+      "languages": {
+        "Shell": 12000,
+        "Lua": 8000,
+        "Vim Script": 600
+      },
+      "topics": [],
+      "stars": 1,
+      "forks": 0,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": null,
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-07-22T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-07-22T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 0,
+      "releases": []
+    },
+    {
+      "name": "go-api",
+      "fullName": "demo/go-api",
+      "description": "Démo — micro-API de notifications push (FCM) écrite en Go.",
+      "htmlUrl": "https://github.com/Karelisio",
+      "homepage": null,
+      "language": "Go",
+      "languages": {
+        "Go": 30000,
+        "Dockerfile": 700
+      },
+      "topics": [
+        "fcm",
+        "api"
+      ],
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "openPulls": 0,
+      "hasIssues": true,
+      "license": "MIT",
+      "fork": false,
+      "archived": false,
+      "defaultBranch": "main",
+      "createdAt": "2025-08-26T08:00:00.000Z",
+      "pushedAt": "2026-06-12T08:00:00.000Z",
+      "lastCommit": {
+        "sha": "demo",
+        "message": "chore: mise à jour",
+        "date": "2026-06-12T08:00:00.000Z",
+        "url": "https://github.com/Karelisio",
+        "author": "demo"
+      },
+      "releaseCount": 1,
+      "releases": [
+        {
+          "id": 1012,
+          "tag": "v0.2.0",
+          "name": "v0.2.0",
+          "publishedAt": "2026-06-22T08:00:00.000Z",
+          "url": "https://github.com/Karelisio",
+          "body": "",
+          "summary": "",
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "go-api_linux_amd64.tar.gz",
+              "size": 6100000,
+              "downloads": 3,
+              "url": "https://github.com/Karelisio",
+              "contentType": "application/octet-stream"
+            }
+          ],
+          "zipballUrl": "https://github.com/Karelisio",
+          "tarballUrl": "https://github.com/Karelisio"
+        }
+      ]
+    }
+  ]
+}
