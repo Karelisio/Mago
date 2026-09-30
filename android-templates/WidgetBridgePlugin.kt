@@ -24,6 +24,24 @@ class WidgetBridgePlugin : Plugin() {
         context.getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
             .edit()
             .putString("snapshot_json", snapshotJson)
+            .remove("signed_out")
+            .apply()
+
+        MagoWidgetProvider.refreshAll(context)
+        call.resolve()
+    }
+
+    // Déconnexion (AuthContext.signOut) : plus d'aperçu, le widget affiche
+    // son écran d'attente. "signed_out" fait ignorer à MagoFcmService les
+    // push encore adressés à l'ancien compte (jeton FCM pas encore retiré de
+    // device_tokens, hors ligne, ou push déjà en route) jusqu'au prochain
+    // updateSnapshot() d'un compte connecté.
+    @PluginMethod
+    fun clearSnapshot(call: PluginCall) {
+        context.getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
+            .edit()
+            .remove("snapshot_json")
+            .putBoolean("signed_out", true)
             .apply()
 
         MagoWidgetProvider.refreshAll(context)

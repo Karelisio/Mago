@@ -127,7 +127,9 @@ dédié (un script par concern, pas un fourre-tout).
 - Le push concerne la liste modifiée, quelle qu'elle soit :
   `MagoFcmService` l'ignore si le snapshot déjà stocké a un autre `list_id`
   non vide (le widget reste sur sa liste). Sans snapshot stocké, le push
-  est accepté tel quel.
+  est accepté tel quel — sauf après une déconnexion : `clearSnapshot()`
+  pose `signed_out` dans "mago_widget", et tout push est ignoré jusqu'au
+  prochain `updateSnapshot()` (qui le retire).
 - Tout chemin de mise à jour du widget (`onUpdate`, `refreshAll`, coche)
   est enveloppé dans `try { … } catch (e: Throwable)` : il tourne dans le
   processus de l'app, une exception la fermerait.
@@ -190,6 +192,27 @@ dédié (un script par concern, pas un fourre-tout).
   `RemoteViewsService`) : changer ce nombre veut dire régénérer ce fichier
   et les tableaux `rowIds`/`textIds`/`checkIds` de `MagoWidgetProvider.kt`
   en même temps.
+
+## Déconnexion (Réglages > Compte)
+
+Rien du compte ne doit survivre pour le suivant sur le même téléphone :
+1. la file de sync est d'abord envoyée (`flush()` attendu, 10 s max ; un
+   `flush()` appelé pendant un autre renvoie la promesse en cours) ; s'il
+   reste des écritures, confirmation « N modifications non synchronisées
+   seront perdues » ;
+2. `AuthContext.signOut()` retire la ligne `device_tokens` de CET appareil
+   (jeton FCM courant, avant `auth.signOut` : RLS exige la session ;
+   best-effort, 5 s max) — sinon les push des listes partagées de l'ancien
+   compte continuaient d'arriver ici ;
+3. `auth.signOut({ scope: 'local' })` (les autres appareils du compte
+   restent connectés ; hors ligne, supabase-js retire quand même la session
+   locale) ;
+4. une fois la session partie : file vidée (`clearQueue` — écrite avec
+   l'ancien `last_modified_by`, RLS la refuserait), `queryClient.clear()`
+   (`['lists']` n'a pas d'id d'utilisateur : le compte suivant voyait les
+   anciennes listes jusqu'à 30 s), préférence de liste du widget effacée,
+   `WidgetBridge.clearSnapshot()` (widget sur son écran d'attente, push
+   ignorés, voir plus haut).
 
 ## Catégories (listes et articles)
 

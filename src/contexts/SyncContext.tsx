@@ -57,7 +57,10 @@ function rowKey(table: QueueTable, id: string) {
 export function SyncProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const flushing = useRef(false);
+  // flush() en cours : un appel concurrent reçoit la même promesse (qui
+  // refait un passage complet avant de se terminer), si bien que l'attendre
+  // garantit que tout ce qui pouvait partir est parti (déconnexion).
+  const flushRun = useRef<Promise<void> | null>(null);
   const pendingFlushRequested = useRef(false);
   // updated_at renvoyé par nos propres UPDATE, par ligne (voir planFlushEntry).
   const ownWrites = useRef(new Map<string, string>());
@@ -156,15 +159,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return removed;
   }
 
-  async function flush() {
-    if (flushing.current) {
+  function flush(): Promise<void> {
+    if (flushRun.current) {
       // Un flush tourne déjà : on redemandera un passage complet dès qu'il aura fini,
       // pour ne jamais perdre silencieusement une entrée arrivée pendant qu'il tournait.
       pendingFlushRequested.current = true;
-      return;
+      return flushRun.current;
     }
-    if (!navigator.onLine || !sessionRef.current) return;
-    flushing.current = true;
+    if (!navigator.onLine || !sessionRef.current) return Promise.resolve();
+    flushRun.current = runFlush();
+    return flushRun.current;
+  }
+
+  async function runFlush() {
     // Requêtes React Query à rafraîchir, invalidées une seule fois en fin de
     // flush plutôt qu'après chaque entrée envoyée.
     const touchedItemLists = new Set<string>();
@@ -282,7 +289,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }
       } while (pendingFlushRequested.current);
     } finally {
-      flushing.current = false;
+      flushRun.current = null;
       if (touchedLists) void queryClient.invalidateQueries({ queryKey: ['lists'] });
       for (const listId of touchedItemLists) {
         void queryClient.invalidateQueries({ queryKey: ['items', listId] });

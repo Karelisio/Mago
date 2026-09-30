@@ -9,7 +9,7 @@ import { useWidgetListId, setWidgetListId } from '../hooks/useWidgetListPref';
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme';
 import { getLocalPref, setLocalPref, IMPORT_AUTO_CONFIRM_KEY } from '../lib/localPref';
 import { clearSyncErrors, readSyncErrors, type SyncErrorEntry } from '../lib/syncErrorLog';
-import { MAX_SYNC_ATTEMPTS } from '../lib/offlineQueue';
+import { MAX_SYNC_ATTEMPTS, readQueue } from '../lib/offlineQueue';
 import { MagoIcon } from '../components/MagoIcon';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppUpdate } from '../hooks/useAppUpdate';
@@ -152,6 +152,65 @@ function SyncSettings() {
   );
 }
 
+// Envoi de la file avant déconnexion : borné, un réseau qui traîne ne doit
+// pas bloquer le bouton indéfiniment (ce qui reste est alors signalé).
+const FLUSH_BEFORE_SIGN_OUT_MS = 10_000;
+
+function AccountSettings() {
+  const { session, signOut } = useAuth();
+  const { flush } = useSync();
+  const [signingOut, setSigningOut] = useState(false);
+  const [unsynced, setUnsynced] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSignOut() {
+    setError(null);
+    setSigningOut(true);
+    // La file est vidée à la déconnexion (elle appartient au compte) :
+    // d'abord envoyer ce qui peut l'être.
+    await Promise.race([
+      flush().catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, FLUSH_BEFORE_SIGN_OUT_MS)),
+    ]);
+    const remaining = (await readQueue()).length;
+    setSigningOut(false);
+    if (remaining > 0) setUnsynced(remaining);
+    else await confirmSignOut();
+  }
+
+  async function confirmSignOut() {
+    setSigningOut(true);
+    const result = await signOut();
+    // Succès : la session disparaît et l'écran de connexion remplace celui-ci.
+    if (result.error) {
+      setSigningOut(false);
+      setUnsynced(null);
+      setError(result.error);
+    }
+  }
+
+  return (
+    <div className="card">
+      <p>Connecté en tant que {session?.user.email}</p>
+      <button className="btn-text" onClick={handleSignOut} disabled={signingOut}>
+        {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
+      </button>
+      {error && <p style={{ color: 'var(--md-error)', margin: 0 }}>{error}</p>}
+      {unsynced !== null && (
+        <ConfirmDialog
+          title="Se déconnecter quand même ?"
+          message={`${modifications(unsynced)} non synchronisée${unsynced > 1 ? 's' : ''} ${unsynced > 1 ? 'seront perdues' : 'sera perdue'} (pas de connexion ?).`}
+          confirmLabel={signingOut ? 'Déconnexion…' : 'Se déconnecter'}
+          destructive
+          busy={signingOut}
+          onConfirm={confirmSignOut}
+          onCancel={() => setUnsynced(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 function CategoryManager({
   title,
   categories,
@@ -214,7 +273,6 @@ function CategoryManager({
 }
 
 export function Settings() {
-  const { session, signOut } = useAuth();
   const { data: lists } = useLists();
   const { sent, received, sendInvite, acceptInvite, declineInvite } = useInvites();
   const partner = usePartnership();
@@ -424,12 +482,7 @@ export function Settings() {
       </div>
 
       <h3>Compte</h3>
-      <div className="card">
-        <p>Connecté en tant que {session?.user.email}</p>
-        <button className="btn-text" onClick={signOut}>
-          Se déconnecter
-        </button>
-      </div>
+      <AccountSettings />
     </div>
   );
 }
