@@ -40,17 +40,47 @@ beforeEach(() => {
 });
 
 describe('enqueueEntry', () => {
-  it('remplace la version en attente de la même ligne et la place en fin de file', async () => {
+  it('remplace la version en attente de la même ligne sur place (même position)', async () => {
     await enqueueEntry(entry('a', 'v1', {}, { completed: true }));
     await enqueueEntry(entry('b', 'v2'));
     const next = await enqueueEntry(entry('a', 'v3', {}, { completed: false }));
 
     expect(next.map((q) => [q.row.id, q.version])).toEqual([
-      ['b', 'v2'],
       ['a', 'v3'],
+      ['b', 'v2'],
     ]);
-    expect(next[1].row.completed).toBe(false);
+    expect(next[0].row.completed).toBe(false);
     expect(await readQueue()).toEqual(next);
+  });
+
+  it('une liste créée hors ligne puis renommée reste devant ses articles', async () => {
+    const list = (version: string, name: string): QueueEntry => ({ ...entry('L', version, {}, { name }), table: 'lists' });
+    await enqueueEntry(list('v1', 'Courses'));
+    await enqueueEntry(entry('i1', 'v2', {}, { list_id: 'L' }));
+    await enqueueEntry(entry('i2', 'v3', {}, { list_id: 'L' }));
+    const next = await enqueueEntry(list('v4', 'Courses du samedi'));
+
+    expect(next.map((q) => [q.table, q.row.id])).toEqual([
+      ['lists', 'L'],
+      ['items', 'i1'],
+      ['items', 'i2'],
+    ]);
+    expect(next[0]).toMatchObject({ version: 'v4', row: { name: 'Courses du samedi' } });
+  });
+
+  it('ajoute en fin de file une ligne pas encore en attente', async () => {
+    await enqueueEntry(entry('a', 'v1'));
+    const next = await enqueueEntry(entry('b', 'v2'));
+    expect(next.map((q) => q.row.id)).toEqual(['a', 'b']);
+  });
+
+  it('ne garde qu’une entrée par ligne, à la première position (doublon hérité)', async () => {
+    store.set(QUEUE_KEY, JSON.stringify([entry('a', 'v1'), entry('b', 'v2'), entry('a', 'v3')]));
+    const next = await enqueueEntry(entry('a', 'v4'));
+    expect(next.map((q) => [q.row.id, q.version])).toEqual([
+      ['a', 'v4'],
+      ['b', 'v2'],
+    ]);
   });
 
   it('ne confond pas deux tables pour un même id', async () => {

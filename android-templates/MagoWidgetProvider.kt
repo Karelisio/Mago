@@ -126,41 +126,50 @@ class MagoWidgetProvider : AppWidgetProvider() {
             val queue = if (raw != null) JSONArray(raw) else JSONArray()
             val itemId = patch.optString("id")
 
-            var existing: JSONObject? = null
+            var merged = false
             val next = JSONArray()
             for (i in 0 until queue.length()) {
                 val entry = queue.optJSONObject(i) ?: continue
                 val entryRow = entry.optJSONObject("row")
                 val isSameEntry = entry.optString("table") == "items" && entryRow?.optString("id") == itemId
-                if (isSameEntry) existing = entry else next.put(entry)
+                if (!isSameEntry) {
+                    next.put(entry)
+                    continue
+                }
+                // Doublon (ne devrait pas exister) : seule la première entrée est gardée.
+                if (merged || entryRow == null) continue
+                // Une entrée déjà en attente pour cet article (ajout/modification
+                // faits dans l'app, ou coche précédente du widget) : on fusionne le
+                // patch dans sa ligne, en gardant ses autres colonnes et son drapeau
+                // patch — une ligne complète jamais encore envoyée doit rester
+                // insérable telle quelle. Elle garde sa place dans la file, comme
+                // enqueueEntry() côté JS (la file est envoyée dans l'ordre).
+                for (key in patch.keys()) {
+                    entryRow.put(key, patch.get(key))
+                }
+                stampNewVersion(entry)
+                next.put(entry)
+                merged = true
             }
 
-            // Une entrée déjà en attente pour cet article (ajout/modification
-            // faits dans l'app, ou coche précédente du widget) : on fusionne le
-            // patch dans sa ligne, en gardant ses autres colonnes et son drapeau
-            // patch — une ligne complète jamais encore envoyée doit rester
-            // insérable telle quelle.
-            val existingRow = existing?.optJSONObject("row")
-            val entry: JSONObject
-            if (existing != null && existingRow != null) {
-                for (key in patch.keys()) {
-                    existingRow.put(key, patch.get(key))
-                }
-                entry = existing
-            } else {
-                entry = JSONObject()
+            if (!merged) {
+                val entry = JSONObject()
                 entry.put("table", "items")
                 entry.put("row", patch)
                 entry.put("patch", true)
+                stampNewVersion(entry)
+                next.put(entry)
             }
-            // Nouvelle version à chaque mise en file : un flush JS en cours
-            // d'envoi de l'ancienne version ne retirera pas celle-ci.
-            entry.put("enqueuedAt", isoNow())
-            entry.put("version", UUID.randomUUID().toString())
-            next.put(entry)
 
             prefs.edit().putString(SYNC_QUEUE_KEY, next.toString()).apply()
         }
+    }
+
+    // Nouvelle version à chaque mise en file : un flush JS en cours d'envoi de
+    // l'ancienne version ne retirera pas celle-ci.
+    private fun stampNewVersion(entry: JSONObject) {
+        entry.put("enqueuedAt", isoNow())
+        entry.put("version", UUID.randomUUID().toString())
     }
 
     private fun isoNow(): String {

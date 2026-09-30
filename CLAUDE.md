@@ -140,11 +140,17 @@ dédié (un script par concern, pas un fourre-tout).
   `"mago_sync_queue_v1"`, même format que `QueueEntry` dans
   `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?}`). Si une
   entrée existe déjà pour cet article, le widget fusionne le patch dans sa
-  `row` (en gardant ses autres colonnes et son drapeau `patch`) au lieu de
-  la remplacer. `SyncContext.flush()` la synchronise au prochain passage de
-  l'app au premier plan (`appStateChange` relit la file) — aucun jeton
+  `row` (en gardant ses autres colonnes et son drapeau `patch`), **à sa
+  place dans la file**, au lieu de la remplacer. `SyncContext.flush()` la
+  synchronise au prochain passage de l'app au premier plan
+  (`appStateChange` relit la file) — aucun jeton
   d'accès natif à maintenir. Si cette queue change de nom/clé/format côté
   JS, `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+- La file est envoyée **dans l'ordre** : une nouvelle version d'une ligne
+  déjà en file la remplace **sur place** (`enqueueEntry`, et la fusion du
+  widget), jamais en fin de file — sinon une liste créée hors ligne puis
+  renommée/déplacée passait derrière ses propres articles, dont l'insert
+  échouait (FK/RLS) tant qu'elle n'existait pas côté serveur.
 - Champs de `QueueEntry` à garder alignés JS ↔ Kotlin :
   - `version` : UUID neuf à **chaque** mise en file (JS
     `crypto.randomUUID()`, Kotlin `UUID.randomUUID()`). `flush()` relit

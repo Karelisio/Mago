@@ -65,11 +65,23 @@ export function readEntry(table: QueueTable, id: string): Promise<QueueEntry | u
   return withLock(async () => (await readQueueRaw()).find((q) => isSameRow(q, table, id)));
 }
 
+// Une nouvelle version d'une ligne déjà en file la remplace SUR PLACE : la
+// file est envoyée dans l'ordre, et une liste créée hors ligne puis
+// renommée/déplacée doit rester devant ses articles (sinon leur insert
+// échoue, FK/RLS, tant que la liste n'existe pas côté serveur). Même règle
+// côté widget (MagoWidgetProvider.enqueueForSync).
 export function enqueueEntry(entry: QueueEntry): Promise<QueueEntry[]> {
   return withLock(async () => {
     const queue = await readQueueRaw();
-    const withoutStale = queue.filter((q) => !isSameRow(q, entry.table, entry.row.id));
-    const next = [...withoutStale, entry];
+    const index = queue.findIndex((q) => isSameRow(q, entry.table, entry.row.id));
+    const next =
+      index === -1
+        ? [...queue, entry]
+        : [
+            ...queue.slice(0, index),
+            entry,
+            ...queue.slice(index + 1).filter((q) => !isSameRow(q, entry.table, entry.row.id)),
+          ];
     await writeQueueRaw(next);
     return next;
   });
