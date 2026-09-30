@@ -248,6 +248,18 @@ réinsérée par `flush()` (liste ressuscitée).
   + `appUrlOpen` (app déjà ouverte, activité `singleTask`) ; un doublon de la
   même URL dans les 3 s est ignoré. Le listener de `AuthContext` reçoit aussi
   ces URL et les ignore (pas de tokens) — et inversement.
+- **Rejeu de l'URL de lancement** : `getLaunchUrl()` la renvoie tant que
+  l'activité vit (« Recharger l'app »), et Android recrée l'activité avec
+  son intent d'origine après la mort du processus (retour par les récents)
+  — Capacitor la relivre alors aussi en `appUrlOpen` (événement retenu).
+  L'import était réappliqué (doublons, quantités additionnées deux fois).
+  `handledLinks.ts` mémorise (Preferences, 50 dernières) l'empreinte des
+  imports **traités** (appliqués, annulés ou refusés — pas un écran de
+  confirmation jamais validé) ; un lien déjà traité livré **au lancement**
+  (`getLaunchUrl`, ou `appUrlOpen` dans les 5 s qui suivent l'abonnement)
+  est ignoré. Un lien reçu app déjà ouverte passe toujours : renvoyer
+  volontairement le même import reste possible, sauf s'il relance l'app à
+  froid (indiscernable d'un rejeu).
 - Écritures via la file de sync (`useApplyImport.ts`) : marche hors ligne.
   Fusion = même nom + même unité (casse/accents ignorés), seulement avec un
   article non coché. Annuler = soft-delete des ajouts + restauration des

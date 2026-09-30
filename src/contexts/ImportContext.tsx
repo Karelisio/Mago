@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { parseImportUrl, type ImportPayload } from '../lib/externalImport';
+import { createLinkGate, linkKey, rememberLink } from '../lib/handledLinks';
 
 export interface SnackbarState {
   id: number;
@@ -22,11 +23,6 @@ interface ImportContextValue {
 
 const ImportContext = createContext<ImportContextValue | undefined>(undefined);
 
-// Au démarrage à froid, getLaunchUrl() et appUrlOpen peuvent livrer la même
-// URL : on ignore un doublon reçu dans la foulée, sans empêcher de rouvrir
-// volontairement le même lien plus tard.
-const DUPLICATE_WINDOW_MS = 3000;
-
 // Pratique pour tester dans un navigateur : /import?data=<base64url>. Lu
 // pendant le rendu initial (useState) : dans un effet, la route catch-all
 // (<Navigate> dans App.tsx, dont l'effet passe avant le nôtre) aurait déjà
@@ -39,10 +35,12 @@ function initialWebImportUrl(): string | null {
 
 export function ImportProvider({ children }: { children: ReactNode }) {
   const [initialWebUrl] = useState(initialWebImportUrl);
-  const [pending, setPending] = useState<ImportPayload | null>(null);
+  // key : empreinte de l'URL reçue, mémorisée une fois l'import traité.
+  const [pending, setPending] = useState<{ payload: ImportPayload; key: string } | null>(null);
   const [pendingId, setPendingId] = useState(0);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
-  const lastHandled = useRef<{ url: string; at: number } | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
   const snackbarSeq = useRef(0);
 
   const showSnackbar = useCallback((message: string, action?: SnackbarState['action']) => {
@@ -50,44 +48,51 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     setSnackbar({ id: snackbarSeq.current, message, action });
   }, []);
 
-  const handleUrl = useCallback(
-    (url: string) => {
+  // Reçu au lancement (getLaunchUrl, URL web initiale) ou app ouverte
+  // (appUrlOpen). Un import déjà traité et relivré au démarrage (rejeu de
+  // l'intent de lancement, voir handledLinks.ts) est ignoré ; un lien reçu
+  // app ouverte est toujours une nouvelle demande.
+  useEffect(() => {
+    const shouldIgnore = createLinkGate();
+    async function receive(url: string, fromLaunch: boolean) {
       const result = parseImportUrl(url);
-      if (!result) return;
-      const now = Date.now();
-      if (lastHandled.current && lastHandled.current.url === url && now - lastHandled.current.at < DUPLICATE_WINDOW_MS) {
-        return;
-      }
-      lastHandled.current = { url, at: now };
+      if (!result || (await shouldIgnore(url, fromLaunch))) return;
+      const key = linkKey(url);
       if (result.ok) {
-        setPending(result.payload);
+        setPending({ payload: result.payload, key });
         setPendingId((id) => id + 1);
       } else {
+        void rememberLink(key);
         showSnackbar(`Import refusé : ${result.error}`);
       }
-    },
-    [showSnackbar],
-  );
+    }
 
-  useEffect(() => {
-    if (initialWebUrl) handleUrl(initialWebUrl);
+    if (initialWebUrl) void receive(initialWebUrl, true);
     if (!Capacitor.isNativePlatform()) return;
 
     void App.getLaunchUrl().then((launch) => {
-      if (launch?.url) handleUrl(launch.url);
+      if (launch?.url) void receive(launch.url, true);
     });
-    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => handleUrl(url));
+    const listenerPromise = App.addListener('appUrlOpen', ({ url }) => void receive(url, false));
     return () => {
       void listenerPromise.then((listener) => listener.remove());
     };
-  }, [handleUrl, initialWebUrl]);
+  }, [initialWebUrl, showSnackbar]);
+
+  // Import traité (appliqué, annulé ou abandonné) : mémorisé, pour ne plus
+  // jamais le réappliquer s'il est relivré au lancement.
+  const clearPending = useCallback(() => {
+    const current = pendingRef.current;
+    if (current) void rememberLink(current.key);
+    setPending(null);
+  }, []);
 
   return (
     <ImportContext.Provider
       value={{
-        pending,
+        pending: pending?.payload ?? null,
         pendingId,
-        clearPending: () => setPending(null),
+        clearPending,
         snackbar,
         showSnackbar,
         hideSnackbar: () => setSnackbar(null),
