@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch: {}
 
 permissions:
@@ -92,6 +95,7 @@ jobs:
         run: echo "path=android/app/build/outputs/apk/release/app-release.apk" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release with APK
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
