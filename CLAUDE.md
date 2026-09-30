@@ -198,7 +198,16 @@ privée, `add_owner_as_member()` n'ajoute pas le partenaire comme membre
 sans toucher aux policies RLS (`lists_select` repose déjà sur
 `is_list_member`/`list_members`). Le partage ponctuel d'une liste précise
 (`invites`, indépendant du jumelage) reste possible même sur une liste
-privée.
+privée. `accept_partner_invite()` saute aussi les listes privées au moment
+du jumelage (0013) — sinon elles devenaient partagées rétroactivement.
+
+Colonnes figées par trigger depuis l'API (0013, `current_user` =
+`authenticated`/`anon` ; les fonctions SECURITY DEFINER passent) :
+`lists.owner_id` (un membre pouvait se l'attribuer puis supprimer la liste)
+et `invites.list_id`/`to_email`/`from_user` (une invitation réécrite vers
+une autre liste permettait de la rejoindre via `accept_invite`). Les
+écritures de la file de sync renvoient la ligne complète avec le même
+`owner_id` : seule une vraie modification est refusée.
 
 ## Imports externes (`mago://import`)
 
