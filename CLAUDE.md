@@ -187,7 +187,10 @@ Les listes sont groupées par type (une section par type, plusieurs listes
 possibles par section) et triées dans chaque section par `lists.position`
 (pas par nom) : les boutons monter/descendre de `Lists.tsx` échangent la
 position de deux listes voisines du même type via `useLists.ts#swapPositions`
-— pas de renumérotation globale à chaque déplacement.
+— pas de renumérotation globale à chaque déplacement. Le type est
+optionnel à la création (seul le nom est exigé) : si `list_categories` est
+vide, la liste est créée avec `type = ''` (le sélecteur de type est alors
+masqué) et apparaît dans une section « Sans type », placée en dernier.
 
 `lists.is_private` (choix à la création, `Lists.tsx`) : quand une liste est
 privée, `add_owner_as_member()` n'ajoute pas le partenaire comme membre
