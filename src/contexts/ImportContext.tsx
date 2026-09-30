@@ -11,10 +11,15 @@ export interface SnackbarState {
 }
 
 interface ImportContextValue {
+  // Import à traiter maintenant (le premier de la file).
   pending: ImportPayload | null;
   // Change à chaque nouvel import reçu : sert de clé pour réinitialiser
   // l'écran de confirmation même si deux imports se ressemblent.
   pendingId: number;
+  // Imports reçus pendant qu'un autre était affiché ou appliqué, en attente
+  // derrière `pending`.
+  queuedCount: number;
+  // Import `pending` traité (appliqué, annulé) : passe au suivant.
   clearPending: () => void;
   snackbar: SnackbarState | null;
   showSnackbar: (message: string, action?: SnackbarState['action']) => void;
@@ -22,6 +27,13 @@ interface ImportContextValue {
 }
 
 const ImportContext = createContext<ImportContextValue | undefined>(undefined);
+
+interface PendingImport {
+  id: number;
+  // Empreinte de l'URL reçue, mémorisée une fois l'import traité.
+  key: string;
+  payload: ImportPayload;
+}
 
 // Pratique pour tester dans un navigateur : /import?data=<base64url>. Lu
 // pendant le rendu initial (useState) : dans un effet, la route catch-all
@@ -35,12 +47,14 @@ function initialWebImportUrl(): string | null {
 
 export function ImportProvider({ children }: { children: ReactNode }) {
   const [initialWebUrl] = useState(initialWebImportUrl);
-  // key : empreinte de l'URL reçue, mémorisée une fois l'import traité.
-  const [pending, setPending] = useState<{ payload: ImportPayload; key: string } | null>(null);
-  const [pendingId, setPendingId] = useState(0);
+  // File des imports reçus : un import arrivé pendant qu'un autre est affiché
+  // ou appliqué attend son tour, au lieu de le remplacer (écran de
+  // confirmation) ou de rester invisible (import sans confirmation).
+  const [queue, setQueue] = useState<PendingImport[]>([]);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
-  const pendingRef = useRef(pending);
-  pendingRef.current = pending;
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
+  const importSeq = useRef(0);
   const snackbarSeq = useRef(0);
 
   const showSnackbar = useCallback((message: string, action?: SnackbarState['action']) => {
@@ -59,8 +73,9 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       if (!result || (await shouldIgnore(url, fromLaunch))) return;
       const key = linkKey(url);
       if (result.ok) {
-        setPending({ payload: result.payload, key });
-        setPendingId((id) => id + 1);
+        importSeq.current += 1;
+        const received: PendingImport = { id: importSeq.current, key, payload: result.payload };
+        setQueue((current) => (current.some((p) => p.key === key) ? current : [...current, received]));
       } else {
         void rememberLink(key);
         showSnackbar(`Import refusé : ${result.error}`);
@@ -80,18 +95,21 @@ export function ImportProvider({ children }: { children: ReactNode }) {
   }, [initialWebUrl, showSnackbar]);
 
   // Import traité (appliqué, annulé ou abandonné) : mémorisé, pour ne plus
-  // jamais le réappliquer s'il est relivré au lancement.
+  // jamais le réappliquer s'il est relivré au lancement, puis retiré de la
+  // file (le suivant, s'il y en a un, prend sa place).
   const clearPending = useCallback(() => {
-    const current = pendingRef.current;
-    if (current) void rememberLink(current.key);
-    setPending(null);
+    const head = queueRef.current[0];
+    if (!head) return;
+    void rememberLink(head.key);
+    setQueue((current) => current.filter((p) => p.id !== head.id));
   }, []);
 
   return (
     <ImportContext.Provider
       value={{
-        pending: pending?.payload ?? null,
-        pendingId,
+        pending: queue[0]?.payload ?? null,
+        pendingId: queue[0]?.id ?? 0,
+        queuedCount: Math.max(0, queue.length - 1),
         clearPending,
         snackbar,
         showSnackbar,

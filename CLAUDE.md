@@ -300,6 +300,12 @@ réinsérée par `flush()` (liste ressuscitée).
 - Réglage "Importer sans confirmer" : n'agit que si listes et types de liste
   sont chargés, sinon retombe sur l'écran de confirmation (pas de doublon de
   liste créé à l'aveugle).
+- Plusieurs imports : **file** dans `ImportContext` (`pending` = le premier,
+  `clearPending()` passe au suivant). Un import reçu pendant qu'un autre est
+  affiché ou appliqué attend son tour (en-tête « N autre(s) en attente ») ;
+  avant, il remplaçait l'écran en cours, ou restait invisible et jamais
+  appliqué pendant un import sans confirmation (`ImportHost` relance son
+  effet à la fin de chaque import automatique).
 
 ## Git
 
