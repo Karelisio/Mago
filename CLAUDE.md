@@ -65,7 +65,17 @@ dédié (un script par concern, pas un fourre-tout).
   `EXECUTE` à `PUBLIC` par défaut sur toute nouvelle fonction. Il faut
   `revoke execute on function ... from public;` explicitement, sinon
   `anon`/`authenticated` restent exécutants via `PUBLIC`. Vérifier après
-  coup avec `mcp__Supabase__get_advisors` (type `security`).
+  coup avec `mcp__Supabase__get_advisors` (type `security`). Et l'inverse
+  aussi : depuis 0013, les triggers « figer une colonne » sont révoqués
+  aussi pour `anon`/`authenticated` (les privilèges par défaut de Supabase
+  les leur accordent explicitement, pas seulement via `PUBLIC`).
+- **Une policy RLS ne peut pas lire `auth.users`** (`authenticated` n'y a
+  aucun droit) : `invites_select`/`partner_invites_select` le faisaient, et
+  TOUT `SELECT` sur ces tables échouait en production (« permission denied
+  for table users ») — aucune invitation ne s'affichait. Pour l'e-mail de
+  l'utilisateur, utiliser `(select auth.jwt()) ->> 'email'` (0014). Toute
+  policy s'écrit avec `(select auth.uid())` (évalué une fois par requête,
+  advisor `performance`).
 - **`.upsert()` piégeux avec RLS** : un `INSERT ... ON CONFLICT DO UPDATE`
   exige que la policy RLS `UPDATE` soit satisfaite même sans conflit réel.
   Si cette policy dépend d'un état posé par un trigger qui n'a pas encore
