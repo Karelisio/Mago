@@ -16,6 +16,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 
 // Widget écran d'accueil (jusqu'à 20 articles — rowIds/textIds/checkIds et
 // res/layout/widget_list_glance.xml doivent rester alignés sur ce nombre ;
@@ -27,11 +28,12 @@ import java.util.TimeZone
 // res/xml/widget_info.xml).
 //
 // Cocher un article directement dans le widget ne fait AUCUN appel réseau
-// natif : la ligne mise à jour est ajoutée telle quelle à la même queue de
-// sync hors-ligne que le reste de l'app (voir offlineQueue.ts côté client),
-// synchronisée normalement par SyncContext.flush() à la prochaine ouverture
-// de l'app. Ça évite complètement le problème d'un jeton d'accès natif à
-// tenir à jour/rafraîchir depuis un widget.
+// natif : un patch (id, list_id, completed, last_modified_by, updated_at) est
+// ajouté à la même queue de sync hors-ligne que le reste de l'app (voir
+// offlineQueue.ts côté client), synchronisée normalement par
+// SyncContext.flush() au prochain passage de l'app au premier plan. Ça évite
+// complètement le problème d'un jeton d'accès natif à tenir à
+// jour/rafraîchir depuis un widget.
 class MagoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -76,38 +78,73 @@ class MagoWidgetProvider : AppWidgetProvider() {
             return
         }
 
-        target.put("completed", !target.optBoolean("completed", false))
+        val completed = !target.optBoolean("completed", false)
+        val now = isoNow()
+        target.put("completed", completed)
         target.put("last_modified_by", userId)
-        target.put("updated_at", isoNow())
+        target.put("updated_at", now)
 
         prefs.edit().putString(KEY_SNAPSHOT, snapshot.toString()).apply()
 
-        enqueueForSync(context, target)
+        // Seules les colonnes réellement changées partent en file (patch), pas
+        // la ligne du snapshot : elle peut être périmée (article renommé ou
+        // retiré depuis) et écraserait ce changement, ou ressusciterait
+        // l'article, une fois synchronisée.
+        val patch = JSONObject()
+        patch.put("id", itemId)
+        val listId = target.optString("list_id", "").ifEmpty { snapshot.optString("list_id", "") }
+        if (listId.isNotEmpty()) patch.put("list_id", listId)
+        patch.put("completed", completed)
+        patch.put("last_modified_by", userId)
+        patch.put("updated_at", now)
+
+        enqueueForSync(context, patch)
         refreshAll(context)
     }
 
-    private fun enqueueForSync(context: Context, row: JSONObject) {
+    private fun enqueueForSync(context: Context, patch: JSONObject) {
         // Même stockage que @capacitor/preferences côté JS (groupe par défaut
-        // "CapacitorStorage") et même format que offlineQueue.ts (QueueEntry),
-        // pour que SyncContext.flush() synchronise cette entrée normalement.
+        // "CapacitorStorage") et même format que offlineQueue.ts (QueueEntry,
+        // champs version et patch compris), pour que SyncContext.flush()
+        // synchronise cette entrée normalement.
         val prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
         synchronized(LOCK) {
             val raw = prefs.getString(SYNC_QUEUE_KEY, null)
             val queue = if (raw != null) JSONArray(raw) else JSONArray()
-            val itemId = row.optString("id")
+            val itemId = patch.optString("id")
 
+            var existing: JSONObject? = null
             val next = JSONArray()
             for (i in 0 until queue.length()) {
-                val entry = queue.getJSONObject(i)
+                val entry = queue.optJSONObject(i) ?: continue
                 val entryRow = entry.optJSONObject("row")
                 val isSameEntry = entry.optString("table") == "items" && entryRow?.optString("id") == itemId
-                if (!isSameEntry) next.put(entry)
+                if (isSameEntry) existing = entry else next.put(entry)
             }
-            val newEntry = JSONObject()
-            newEntry.put("table", "items")
-            newEntry.put("row", row)
-            newEntry.put("enqueuedAt", isoNow())
-            next.put(newEntry)
+
+            // Une entrée déjà en attente pour cet article (ajout/modification
+            // faits dans l'app, ou coche précédente du widget) : on fusionne le
+            // patch dans sa ligne, en gardant ses autres colonnes et son drapeau
+            // patch — une ligne complète jamais encore envoyée doit rester
+            // insérable telle quelle.
+            val existingRow = existing?.optJSONObject("row")
+            val entry: JSONObject
+            if (existing != null && existingRow != null) {
+                for (key in patch.keys()) {
+                    existingRow.put(key, patch.get(key))
+                }
+                entry = existing
+            } else {
+                entry = JSONObject()
+                entry.put("table", "items")
+                entry.put("row", patch)
+                entry.put("patch", true)
+            }
+            // Nouvelle version à chaque mise en file : un flush JS en cours
+            // d'envoi de l'ancienne version ne retirera pas celle-ci.
+            entry.put("enqueuedAt", isoNow())
+            entry.put("version", UUID.randomUUID().toString())
+            next.put(entry)
 
             prefs.edit().putString(SYNC_QUEUE_KEY, next.toString()).apply()
         }

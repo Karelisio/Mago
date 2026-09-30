@@ -112,14 +112,36 @@ dédié (un script par concern, pas un fourre-tout).
   l'envoie sous une seule clé `snapshot` pour éviter d'avoir deux formats
   à maintenir).
 - **Cocher un article depuis le widget ne fait aucun appel réseau natif.**
-  La ligne mise à jour est ajoutée directement dans la queue de sync
-  hors-ligne de l'app (mêmes `SharedPreferences` que
+  Un **patch** `{id, list_id, completed, last_modified_by, updated_at}` —
+  jamais la ligne entière du snapshot, qui peut être périmée (renommage
+  écrasé, article retiré ressuscité) — est ajouté directement dans la queue
+  de sync hors-ligne de l'app (mêmes `SharedPreferences` que
   `@capacitor/preferences`, groupe par défaut `"CapacitorStorage"`, clé
   `"mago_sync_queue_v1"`, même format que `QueueEntry` dans
-  `offlineQueue.ts`). `SyncContext.flush()` la synchronise normalement à la
-  prochaine ouverture de l'app — aucun jeton d'accès natif à maintenir. Si
-  cette queue change de nom/clé/format côté JS, `MagoWidgetProvider.kt`
-  doit être mis à jour en même temps.
+  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?}`). Si une
+  entrée existe déjà pour cet article, le widget fusionne le patch dans sa
+  `row` (en gardant ses autres colonnes et son drapeau `patch`) au lieu de
+  la remplacer. `SyncContext.flush()` la synchronise au prochain passage de
+  l'app au premier plan (`appStateChange` relit la file) — aucun jeton
+  d'accès natif à maintenir. Si cette queue change de nom/clé/format côté
+  JS, `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+- Champs de `QueueEntry` à garder alignés JS ↔ Kotlin :
+  - `version` : UUID neuf à **chaque** mise en file (JS
+    `crypto.randomUUID()`, Kotlin `UUID.randomUUID()`). `flush()` relit
+    l'entrée juste avant l'envoi (absente → annulée, on saute ; remplacée →
+    on envoie la plus récente) et ne retire ensuite que la version envoyée
+    (`removeEntryIfUnchanged`) : une version mise en file pendant la requête
+    (cocher puis décocher vite, « Annuler » un import) n'est plus perdue.
+    Repli sur `enqueuedAt` pour une ancienne entrée sans `version`.
+  - `patch: true` : jamais inséré. Ligne absente côté serveur → entrée
+    abandonnée (journalisée via `logSyncError`) ; sinon `update()` des
+    seules colonnes du patch.
+- Le trigger `set_updated_at` réécrit `updated_at` à l'heure **serveur** à
+  chaque UPDATE : `flush()` mémorise celui renvoyé par ses propres UPDATE
+  pour ne pas prendre sa propre écriture pour une modification plus récente
+  d'un tiers (sinon une version mise en file pendant l'envoi, ou avec
+  l'horloge du téléphone en retard, serait abandonnée — voir
+  `planFlushEntry`, testé dans `offlineQueue.test.ts`).
 - Push FCM **data-only** (pas de clé `notification`) : réveil silencieux,
   pas de popup système, pas de permission `POST_NOTIFICATIONS` (Android 13+)
   à demander.
