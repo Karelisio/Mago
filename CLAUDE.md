@@ -89,7 +89,11 @@ dédié (un script par concern, pas un fourre-tout).
   `ListDetail` s'abonnant tous deux à `items:<listId>` pour la même liste).
   `useRealtimeItems.ts` compte les références par `listId` pour n'ouvrir
   qu'un seul abonnement réel, quel que soit le nombre de composants montés
-  dessus.
+  dessus. En revanche, rouvrir aussitôt une liste fermée crée bien un canal
+  neuf : avec realtime-js 2.117 (`@supabase/phoenix`), `removeChannel()`
+  ferme et retire le canal de façon synchrone (le `leave` est acquitté
+  localement) — vérifié avec un faux socket qui n'acquitte jamais
+  `phx_leave` ; pas besoin de suffixer le topic.
 - **Qualificatifs de ressource combinés** : `values-v31/` (Android 12+) ne
   s'applique **qu'en thème clair** — `values-night/` (qualificatif "night"
   seul) est plus spécifique et gagne en thème sombre. Pour du contenu
@@ -149,14 +153,15 @@ dédié (un script par concern, pas un fourre-tout).
   de sync hors-ligne de l'app (mêmes `SharedPreferences` que
   `@capacitor/preferences`, groupe par défaut `"CapacitorStorage"`, clé
   `"mago_sync_queue_v1"`, même format que `QueueEntry` dans
-  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?}`). Si une
+  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?,
+  attempts?}`). Si une
   entrée existe déjà pour cet article, le widget fusionne le patch dans sa
   `row` (en gardant ses autres colonnes et son drapeau `patch`), **à sa
   place dans la file**, au lieu de la remplacer. `SyncContext.flush()` la
   synchronise au prochain passage de l'app au premier plan
-  (`appStateChange` relit la file) — aucun jeton
-  d'accès natif à maintenir. Si cette queue change de nom/clé/format côté
-  JS, `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+  (`appStateChange` relit la file) — aucun jeton d'accès natif à
+  maintenir. Si cette queue change de nom/clé/format côté JS,
+  `MagoWidgetProvider.kt` doit être mis à jour en même temps.
 - La file est envoyée **dans l'ordre** : une nouvelle version d'une ligne
   déjà en file la remplace **sur place** (`enqueueEntry`, et la fusion du
   widget), jamais en fin de file — sinon une liste créée hors ligne puis
