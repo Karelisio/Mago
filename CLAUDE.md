@@ -248,7 +248,9 @@ Rien du compte ne doit survivre pour le suivant sur le même téléphone :
    compte continuaient d'arriver ici ;
 3. `auth.signOut({ scope: 'local' })` (les autres appareils du compte
    restent connectés ; hors ligne, supabase-js retire quand même la session
-   locale) ;
+   locale — sauf jeton expiré impossible à rafraîchir : `getSession()`
+   renvoie alors une erreur, rien n'est nettoyé et un message invite à
+   réessayer avec une connexion) ;
 4. une fois la session partie : file vidée (`clearQueue` — écrite avec
    l'ancien `last_modified_by`, RLS la refuserait), `queryClient.clear()`
    (`['lists']` n'a pas d'id d'utilisateur : le compte suivant voyait les
