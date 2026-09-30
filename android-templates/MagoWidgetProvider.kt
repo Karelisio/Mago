@@ -16,27 +16,29 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 
 // Widget écran d'accueil (jusqu'à 20 articles — rowIds/textIds/checkIds et
 // res/layout/widget_list_glance.xml doivent rester alignés sur ce nombre ;
-// une seule liste fixe pour la v1, la plus ancienne — voir Lists.tsx/
-// useLists.ts qui trie par created_at). Se redessine depuis
+// une seule liste : celle choisie dans Réglages, sinon la plus ancienne —
+// voir useWidgetSync.ts). Se redessine depuis
 // le dernier aperçu reçu par MagoFcmService ou par WidgetBridgePlugin (mis
 // en cache dans les SharedPreferences "mago_widget"), et à intervalle
 // régulier via updatePeriodMillis (secours seulement — voir
 // res/xml/widget_info.xml).
 //
 // Cocher un article directement dans le widget ne fait AUCUN appel réseau
-// natif : la ligne mise à jour est ajoutée telle quelle à la même queue de
-// sync hors-ligne que le reste de l'app (voir offlineQueue.ts côté client),
-// synchronisée normalement par SyncContext.flush() à la prochaine ouverture
-// de l'app. Ça évite complètement le problème d'un jeton d'accès natif à
-// tenir à jour/rafraîchir depuis un widget.
+// natif : un patch (id, list_id, completed, last_modified_by, updated_at) est
+// ajouté à la même queue de sync hors-ligne que le reste de l'app (voir
+// offlineQueue.ts côté client), synchronisée normalement par
+// SyncContext.flush() au prochain passage de l'app au premier plan. Ça évite
+// complètement le problème d'un jeton d'accès natif à tenir à
+// jour/rafraîchir depuis un widget.
 class MagoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (id in appWidgetIds) {
-            updateWidget(context, appWidgetManager, id)
+            safeUpdateWidget(context, appWidgetManager, id)
         }
     }
 
@@ -44,22 +46,29 @@ class MagoWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (intent.action == ACTION_TOGGLE_ITEM) {
             val itemId = intent.getStringExtra(EXTRA_ITEM_ID)
-            if (itemId != null) toggleItem(context, itemId)
+            if (itemId != null) {
+                // Même raison que safeUpdateWidget() : ce code tourne dans le
+                // processus de l'app, une exception la fermerait.
+                try {
+                    toggleItem(context, itemId)
+                } catch (e: Throwable) {
+                    // Coche perdue, le widget garde son dernier état.
+                }
+            }
         }
     }
 
     private fun toggleItem(context: Context, itemId: String) {
         val prefs = context.getSharedPreferences(PREFS_WIDGET, Context.MODE_PRIVATE)
-        val snapshotRaw = prefs.getString(KEY_SNAPSHOT, null)
-        val snapshot = if (snapshotRaw != null) JSONObject(snapshotRaw) else null
+        val snapshot = parseSnapshot(prefs.getString(KEY_SNAPSHOT, null))
         val items = snapshot?.optJSONArray("items")
         val userId = snapshot?.optString("user_id", null)
 
         var target: JSONObject? = null
         if (items != null) {
             for (i in 0 until items.length()) {
-                val obj = items.getJSONObject(i)
-                if (obj.optString("id") == itemId) {
+                val obj = items.optJSONObject(i) ?: continue
+                if (obj.optString("id", "") == itemId) {
                     target = obj
                     break
                 }
@@ -76,38 +85,79 @@ class MagoWidgetProvider : AppWidgetProvider() {
             return
         }
 
-        target.put("completed", !target.optBoolean("completed", false))
+        val completed = !target.optBoolean("completed", false)
+        val now = isoNow()
+        target.put("completed", completed)
         target.put("last_modified_by", userId)
-        target.put("updated_at", isoNow())
+        target.put("updated_at", now)
+        // remaining couvre toute la liste, pas seulement les articles
+        // affichés : on l'ajuste d'un cran au lieu de le recalculer.
+        if (snapshot.has("remaining")) {
+            val remaining = snapshot.optInt("remaining", 0) + if (completed) -1 else 1
+            snapshot.put("remaining", maxOf(0, remaining))
+        }
 
         prefs.edit().putString(KEY_SNAPSHOT, snapshot.toString()).apply()
 
-        enqueueForSync(context, target)
+        // Seules les colonnes réellement changées partent en file (patch), pas
+        // la ligne du snapshot : elle peut être périmée (article renommé ou
+        // retiré depuis) et écraserait ce changement, ou ressusciterait
+        // l'article, une fois synchronisée.
+        val patch = JSONObject()
+        patch.put("id", itemId)
+        val listId = target.optString("list_id", "").ifEmpty { snapshot.optString("list_id", "") }
+        if (listId.isNotEmpty()) patch.put("list_id", listId)
+        patch.put("completed", completed)
+        patch.put("last_modified_by", userId)
+        patch.put("updated_at", now)
+
+        enqueueForSync(context, patch)
         refreshAll(context)
     }
 
-    private fun enqueueForSync(context: Context, row: JSONObject) {
+    private fun enqueueForSync(context: Context, patch: JSONObject) {
         // Même stockage que @capacitor/preferences côté JS (groupe par défaut
-        // "CapacitorStorage") et même format que offlineQueue.ts (QueueEntry),
-        // pour que SyncContext.flush() synchronise cette entrée normalement.
+        // "CapacitorStorage") et même format que offlineQueue.ts (QueueEntry,
+        // champs version et patch compris), pour que SyncContext.flush()
+        // synchronise cette entrée normalement.
         val prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
         synchronized(LOCK) {
             val raw = prefs.getString(SYNC_QUEUE_KEY, null)
             val queue = if (raw != null) JSONArray(raw) else JSONArray()
-            val itemId = row.optString("id")
+            val itemId = patch.optString("id")
 
+            var existing: JSONObject? = null
             val next = JSONArray()
             for (i in 0 until queue.length()) {
-                val entry = queue.getJSONObject(i)
+                val entry = queue.optJSONObject(i) ?: continue
                 val entryRow = entry.optJSONObject("row")
                 val isSameEntry = entry.optString("table") == "items" && entryRow?.optString("id") == itemId
-                if (!isSameEntry) next.put(entry)
+                if (isSameEntry) existing = entry else next.put(entry)
             }
-            val newEntry = JSONObject()
-            newEntry.put("table", "items")
-            newEntry.put("row", row)
-            newEntry.put("enqueuedAt", isoNow())
-            next.put(newEntry)
+
+            // Une entrée déjà en attente pour cet article (ajout/modification
+            // faits dans l'app, ou coche précédente du widget) : on fusionne le
+            // patch dans sa ligne, en gardant ses autres colonnes et son drapeau
+            // patch — une ligne complète jamais encore envoyée doit rester
+            // insérable telle quelle.
+            val existingRow = existing?.optJSONObject("row")
+            val entry: JSONObject
+            if (existing != null && existingRow != null) {
+                for (key in patch.keys()) {
+                    existingRow.put(key, patch.get(key))
+                }
+                entry = existing
+            } else {
+                entry = JSONObject()
+                entry.put("table", "items")
+                entry.put("row", patch)
+                entry.put("patch", true)
+            }
+            // Nouvelle version à chaque mise en file : un flush JS en cours
+            // d'envoi de l'ancienne version ne retirera pas celle-ci.
+            entry.put("enqueuedAt", isoNow())
+            entry.put("version", UUID.randomUUID().toString())
+            next.put(entry)
 
             prefs.edit().putString(SYNC_QUEUE_KEY, next.toString()).apply()
         }
@@ -128,17 +178,43 @@ class MagoWidgetProvider : AppWidgetProvider() {
         private val LOCK = Any()
 
         fun refreshAll(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(ComponentName(context, MagoWidgetProvider::class.java))
-            for (id in ids) {
-                updateWidget(context, manager, id)
+            try {
+                val manager = AppWidgetManager.getInstance(context)
+                val ids = manager.getAppWidgetIds(ComponentName(context, MagoWidgetProvider::class.java))
+                for (id in ids) {
+                    safeUpdateWidget(context, manager, id)
+                }
+            } catch (e: Throwable) {
+                // Voir safeUpdateWidget().
+            }
+        }
+
+        // Le rendu du widget tourne dans le processus de l'app (onUpdate, push
+        // FCM, WidgetBridgePlugin appelé par le JS) : une exception non
+        // rattrapée ici fermerait Mago entièrement. Throwable et pas seulement
+        // Exception, pour couvrir aussi OutOfMemoryError.
+        private fun safeUpdateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+            try {
+                updateWidget(context, appWidgetManager, appWidgetId)
+            } catch (e: Throwable) {
+                // Le widget garde son dernier rendu.
+            }
+        }
+
+        private fun parseSnapshot(raw: String?): JSONObject? {
+            if (raw == null) return null
+            return try {
+                JSONObject(raw)
+            } catch (e: Throwable) {
+                null
             }
         }
 
         private fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val prefs = context.getSharedPreferences(PREFS_WIDGET, Context.MODE_PRIVATE)
             val views = RemoteViews(context.packageName, R.layout.widget_list_glance)
-            val snapshotRaw = prefs.getString(KEY_SNAPSHOT, null)
+            // Absent (widget jamais alimenté) ou illisible : même écran d'attente.
+            val snapshot = parseSnapshot(prefs.getString(KEY_SNAPSHOT, null))
 
             val rowIds = intArrayOf(R.id.widget_item_1, R.id.widget_item_2, R.id.widget_item_3, R.id.widget_item_4, R.id.widget_item_5, R.id.widget_item_6, R.id.widget_item_7, R.id.widget_item_8, R.id.widget_item_9, R.id.widget_item_10, R.id.widget_item_11, R.id.widget_item_12, R.id.widget_item_13, R.id.widget_item_14, R.id.widget_item_15, R.id.widget_item_16, R.id.widget_item_17, R.id.widget_item_18, R.id.widget_item_19, R.id.widget_item_20)
             val textIds = intArrayOf(
@@ -186,29 +262,34 @@ class MagoWidgetProvider : AppWidgetProvider() {
                 R.id.widget_item_check_20
             )
 
-            if (snapshotRaw == null) {
+            if (snapshot == null) {
                 views.setTextViewText(R.id.widget_list_name, "Mago")
                 views.setTextViewText(R.id.widget_subtitle, "Ouvre l'app pour charger ta liste")
                 for (rowId in rowIds) views.setViewVisibility(rowId, View.GONE)
             } else {
-                val snapshot = JSONObject(snapshotRaw)
+                // Articles allégés (id, list_id, name, qty, unit, completed) :
+                // toujours opt* avec une valeur par défaut, jamais get*.
                 val listName = snapshot.optString("list_name", "Mago")
                 val items = snapshot.optJSONArray("items") ?: JSONArray()
                 val total = snapshot.optInt("total", items.length())
-                var remaining = 0
+                var shownRemaining = 0
                 for (i in 0 until items.length()) {
-                    if (!items.getJSONObject(i).optBoolean("completed", false)) remaining++
+                    val item = items.optJSONObject(i) ?: continue
+                    if (!item.optBoolean("completed", false)) shownRemaining++
                 }
+                // remaining compte toute la liste ; repli sur les articles
+                // affichés pour un snapshot d'une version qui ne l'envoyait pas.
+                val remaining = snapshot.optInt("remaining", shownRemaining)
 
                 views.setTextViewText(R.id.widget_list_name, listName)
                 views.setTextViewText(R.id.widget_subtitle, "$remaining restants sur $total")
 
                 for (i in rowIds.indices) {
-                    if (i < items.length()) {
-                        val item = items.getJSONObject(i)
+                    val item = if (i < items.length()) items.optJSONObject(i) else null
+                    if (item != null) {
                         val completed = item.optBoolean("completed", false)
                         views.setViewVisibility(rowIds[i], View.VISIBLE)
-                        views.setTextViewText(textIds[i], item.optString("name"))
+                        views.setTextViewText(textIds[i], item.optString("name", ""))
                         views.setImageViewResource(
                             checkIds[i],
                             if (completed) R.drawable.widget_checkbox_checked else R.drawable.widget_checkbox_unchecked
@@ -220,7 +301,7 @@ class MagoWidgetProvider : AppWidgetProvider() {
                         }
                         views.setInt(textIds[i], "setPaintFlags", paintFlags)
 
-                        val itemId = item.optString("id")
+                        val itemId = item.optString("id", "")
                         val toggleIntent = Intent(context, MagoWidgetProvider::class.java).apply {
                             action = ACTION_TOGGLE_ITEM
                             putExtra(EXTRA_ITEM_ID, itemId)

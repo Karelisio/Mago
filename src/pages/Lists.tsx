@@ -16,7 +16,12 @@ export function Lists() {
   const [shared, setShared] = useState(true);
 
   const categoryNames = (categories ?? []).map((c) => c.name);
-  const effectiveNewType = newType || categoryNames[0] || '';
+  // Le type reste optionnel : la table des types de liste peut être vidée
+  // (Réglages), la liste est alors créée sans type ('') plutôt que de
+  // bloquer la création — voir CLAUDE.md. Un type mémorisé qui n'existe plus
+  // n'est pas réutilisé une fois les types chargés.
+  const effectiveNewType =
+    categories && !categoryNames.includes(newType) ? (categoryNames[0] ?? '') : newType;
 
   // Le type choisi pour créer une liste reste sélectionné (persisté) jusqu'à
   // changement volontaire, plutôt que de retomber sur le premier de la liste
@@ -33,21 +38,21 @@ export function Lists() {
 
   const filtered = (lists ?? []).filter((l) => filter === 'all' || l.type === filter);
 
-  // Rangées par catégorie (ordre alphabétique des catégories), triées par
-  // position (modifiable via les boutons monter/descendre) dans chaque
-  // catégorie — l'ordre de récupération (created_at) reste inchangé pour le
-  // widget, ce regroupement n'affecte que l'affichage.
+  // Rangées par catégorie (ordre alphabétique des catégories, les listes sans
+  // type en dernier), triées par position (modifiable via les boutons
+  // monter/descendre) dans chaque catégorie — l'ordre de récupération
+  // (created_at) reste inchangé pour le widget, ce regroupement n'affecte
+  // que l'affichage.
   const groups = new Map<string, typeof filtered>();
   for (const list of filtered) {
-    const key = list.type || '(sans catégorie)';
-    groups.set(key, [...(groups.get(key) ?? []), list]);
+    groups.set(list.type, [...(groups.get(list.type) ?? []), list]);
   }
   const sortedGroups = [...groups.entries()]
     .map(([type, items]) => [type, [...items].sort((a, b) => a.position - b.position)] as const)
-    .sort((a, b) => a[0].localeCompare(b[0]));
+    .sort((a, b) => (a[0] === '' ? 1 : b[0] === '' ? -1 : a[0].localeCompare(b[0])));
 
   async function handleCreate() {
-    if (!newName.trim() || !effectiveNewType) return;
+    if (!newName.trim()) return;
     await createList(newName.trim(), effectiveNewType, !shared);
     setNewName('');
   }
@@ -86,14 +91,16 @@ export function Lists() {
           onChange={(e) => setNewName(e.target.value)}
           style={{ flex: 1, minWidth: 120 }}
         />
-        <select value={effectiveNewType} onChange={(e) => handleTypeChange(e.target.value)}>
-          {categoryNames.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <button className="btn-primary" onClick={handleCreate} disabled={!effectiveNewType}>
+        {categoryNames.length > 0 && (
+          <select value={effectiveNewType} onChange={(e) => handleTypeChange(e.target.value)}>
+            {categoryNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+        <button className="btn-primary" onClick={handleCreate} disabled={!newName.trim()}>
           Créer
         </button>
       </div>
@@ -117,7 +124,7 @@ export function Lists() {
 
       {sortedGroups.map(([type, groupLists]) => (
         <div key={type}>
-          <h3 style={{ margin: '12px 0 8px' }}>{type}</h3>
+          <h3 style={{ margin: '12px 0 8px' }}>{type || 'Sans type'}</h3>
           {groupLists.map((list, index) => (
             <div className="list-card" key={list.id}>
               <span className={`list-dot tone-${categoryTone(list.type)}`} />

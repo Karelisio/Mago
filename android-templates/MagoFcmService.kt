@@ -3,22 +3,42 @@ package com.karelisio.mago
 import android.content.Context
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import org.json.JSONObject
 
 // Reçoit le push FCM data-only envoyé par l'Edge Function notify-item-change
 // (voir supabase/functions/notify-item-change) : pas de "notification" dans
 // le payload, donc pas de popup système, juste un réveil silencieux de
 // l'app pour rafraîchir le widget. Le snapshot reçu (JSON déjà entièrement
-// formé côté Edge Function : nom de liste, compteur, jusqu'à 5 lignes
-// d'articles complètes) est stocké tel quel, dans le même format et sous la
-// même clé que WidgetBridgePlugin (mis à jour directement par l'app) — une
-// seule source de vérité pour MagoWidgetProvider.
+// formé côté Edge Function : nom de liste, compteurs total/remaining,
+// jusqu'à 20 articles non cochés allégés — moins si la limite de 4 Ko du
+// push l'impose) est stocké tel quel, dans le même format et sous la même
+// clé que WidgetBridgePlugin (mis à jour directement par l'app) — une seule
+// source de vérité pour MagoWidgetProvider.
 class MagoFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         val snapshotJson = remoteMessage.data["snapshot"] ?: return
+        val prefs = getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
 
-        getSharedPreferences("mago_widget", Context.MODE_PRIVATE)
-            .edit()
+        // Le push concerne la liste modifiée, quelle qu'elle soit, alors que le
+        // widget affiche une liste précise (choisie dans Réglages, sinon la
+        // plus ancienne) : un snapshot d'une autre liste ne doit pas la
+        // remplacer. Sans snapshot déjà stocké (widget jamais alimenté par
+        // l'app), le push est accepté tel quel.
+        val incomingListId = try {
+            JSONObject(snapshotJson).optString("list_id", "")
+        } catch (e: Throwable) {
+            return // JSON malformé : ignoré
+        }
+        val storedListId = try {
+            val stored = prefs.getString("snapshot_json", null)
+            if (stored != null) JSONObject(stored).optString("list_id", "") else ""
+        } catch (e: Throwable) {
+            "" // snapshot stocké illisible : autant le remplacer
+        }
+        if (storedListId.isNotEmpty() && storedListId != incomingListId) return
+
+        prefs.edit()
             .putString("snapshot_json", snapshotJson)
             .apply()
 

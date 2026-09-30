@@ -99,27 +99,69 @@ dédié (un script par concern, pas un fourre-tout).
 
 ## Widget écran d'accueil (Phase 5)
 
-- Une seule liste fixe (v1, pas de config) : **la première par
-  `created_at` ascendant**, même tri que `useLists.ts`. Si ce tri change un
-  jour, le widget change de liste en même temps — c'est voulu.
+- Une seule liste : celle choisie dans Réglages (préférence par appareil,
+  `useWidgetListPref.ts`), sinon **la première par `created_at`
+  ascendant**, même tri que `useLists.ts`. Si ce tri change un jour, le
+  widget change de liste en même temps — c'est voulu.
 - Snapshot unique en JSON, stocké dans les `SharedPreferences` "mago_widget"
   sous la clé "snapshot_json", forme `{list_id, list_name, user_id, total,
-  items: ItemRow[]}` (noms de colonnes Postgres exacts pour `items`, voir
-  plus bas). Alimenté par deux chemins qui doivent rester au même format :
-  `WidgetBridgePlugin.updateSnapshot()` (app ouverte, JS) et
-  `MagoFcmService.onMessageReceived()` (app fermée, push FCM data-only —
-  l'Edge Function `notify-item-change` construit exactement ce JSON et
-  l'envoie sous une seule clé `snapshot` pour éviter d'avoir deux formats
-  à maintenir).
+  remaining, items}` : `total` = articles de la liste (cochés compris),
+  `remaining` = articles non cochés (tous, pas seulement ceux affichés),
+  `items` = articles **non cochés** seulement, triés comme l'app
+  (`useItems.ts`), réduits à `{id, list_id, name, qty, unit, completed}`
+  (noms de colonnes Postgres). Le natif ne lit ces champs qu'avec `opt*` +
+  valeur par défaut (repli sur un décompte des articles affichés si
+  `remaining` manque). Alimenté par deux chemins qui doivent rester au même
+  format : `WidgetBridgePlugin.updateSnapshot()` (app ouverte, JS,
+  `useWidgetSync.ts`) et `MagoFcmService.onMessageReceived()` (app fermée,
+  push FCM data-only — l'Edge Function `notify-item-change` construit
+  exactement ce JSON et l'envoie sous une seule clé `snapshot` pour éviter
+  d'avoir deux formats à maintenir).
+- **Charge data FCM limitée à 4 Ko** : l'Edge Function retire des articles
+  en fin d'aperçu tant que `JSON.stringify({ snapshot })` dépasse 3500
+  octets (≈ 14 à 19 articles selon la longueur des noms), `remaining`/`total`
+  restant exacts. Avec des lignes complètes (`select('*')`), plus aucun push
+  n'arrivait dès ~9 articles. Tout envoi FCM non OK est journalisé (status +
+  `errorCode`, lu dans le détail `google.firebase.fcm.v1.FcmError`) ; un
+  token n'est purgé que sur 404 ou `UNREGISTERED`.
+- Le push concerne la liste modifiée, quelle qu'elle soit :
+  `MagoFcmService` l'ignore si le snapshot déjà stocké a un autre `list_id`
+  non vide (le widget reste sur sa liste). Sans snapshot stocké, le push
+  est accepté tel quel.
+- Tout chemin de mise à jour du widget (`onUpdate`, `refreshAll`, coche)
+  est enveloppé dans `try { … } catch (e: Throwable)` : il tourne dans le
+  processus de l'app, une exception la fermerait.
 - **Cocher un article depuis le widget ne fait aucun appel réseau natif.**
-  La ligne mise à jour est ajoutée directement dans la queue de sync
-  hors-ligne de l'app (mêmes `SharedPreferences` que
+  Un **patch** `{id, list_id, completed, last_modified_by, updated_at}` —
+  jamais la ligne entière du snapshot, qui peut être périmée (renommage
+  écrasé, article retiré ressuscité) — est ajouté directement dans la queue
+  de sync hors-ligne de l'app (mêmes `SharedPreferences` que
   `@capacitor/preferences`, groupe par défaut `"CapacitorStorage"`, clé
   `"mago_sync_queue_v1"`, même format que `QueueEntry` dans
-  `offlineQueue.ts`). `SyncContext.flush()` la synchronise normalement à la
-  prochaine ouverture de l'app — aucun jeton d'accès natif à maintenir. Si
-  cette queue change de nom/clé/format côté JS, `MagoWidgetProvider.kt`
-  doit être mis à jour en même temps.
+  `offlineQueue.ts` : `{table, row, enqueuedAt, version, patch?}`). Si une
+  entrée existe déjà pour cet article, le widget fusionne le patch dans sa
+  `row` (en gardant ses autres colonnes et son drapeau `patch`) au lieu de
+  la remplacer. `SyncContext.flush()` la synchronise au prochain passage de
+  l'app au premier plan (`appStateChange` relit la file) — aucun jeton
+  d'accès natif à maintenir. Si cette queue change de nom/clé/format côté
+  JS, `MagoWidgetProvider.kt` doit être mis à jour en même temps.
+- Champs de `QueueEntry` à garder alignés JS ↔ Kotlin :
+  - `version` : UUID neuf à **chaque** mise en file (JS
+    `crypto.randomUUID()`, Kotlin `UUID.randomUUID()`). `flush()` relit
+    l'entrée juste avant l'envoi (absente → annulée, on saute ; remplacée →
+    on envoie la plus récente) et ne retire ensuite que la version envoyée
+    (`removeEntryIfUnchanged`) : une version mise en file pendant la requête
+    (cocher puis décocher vite, « Annuler » un import) n'est plus perdue.
+    Repli sur `enqueuedAt` pour une ancienne entrée sans `version`.
+  - `patch: true` : jamais inséré. Ligne absente côté serveur → entrée
+    abandonnée (journalisée via `logSyncError`) ; sinon `update()` des
+    seules colonnes du patch.
+- Le trigger `set_updated_at` réécrit `updated_at` à l'heure **serveur** à
+  chaque UPDATE : `flush()` mémorise celui renvoyé par ses propres UPDATE
+  pour ne pas prendre sa propre écriture pour une modification plus récente
+  d'un tiers (sinon une version mise en file pendant l'envoi, ou avec
+  l'horloge du téléphone en retard, serait abandonnée — voir
+  `planFlushEntry`, testé dans `offlineQueue.test.ts`).
 - Push FCM **data-only** (pas de clé `notification`) : réveil silencieux,
   pas de popup système, pas de permission `POST_NOTIFICATIONS` (Android 13+)
   à demander.
@@ -145,7 +187,10 @@ Les listes sont groupées par type (une section par type, plusieurs listes
 possibles par section) et triées dans chaque section par `lists.position`
 (pas par nom) : les boutons monter/descendre de `Lists.tsx` échangent la
 position de deux listes voisines du même type via `useLists.ts#swapPositions`
-— pas de renumérotation globale à chaque déplacement.
+— pas de renumérotation globale à chaque déplacement. Le type est
+optionnel à la création (seul le nom est exigé) : si `list_categories` est
+vide, la liste est créée avec `type = ''` (le sélecteur de type est alors
+masqué) et apparaît dans une section « Sans type », placée en dernier.
 
 `lists.is_private` (choix à la création, `Lists.tsx`) : quand une liste est
 privée, `add_owner_as_member()` n'ajoute pas le partenaire comme membre
@@ -153,7 +198,16 @@ privée, `add_owner_as_member()` n'ajoute pas le partenaire comme membre
 sans toucher aux policies RLS (`lists_select` repose déjà sur
 `is_list_member`/`list_members`). Le partage ponctuel d'une liste précise
 (`invites`, indépendant du jumelage) reste possible même sur une liste
-privée.
+privée. `accept_partner_invite()` saute aussi les listes privées au moment
+du jumelage (0013) — sinon elles devenaient partagées rétroactivement.
+
+Colonnes figées par trigger depuis l'API (0013, `current_user` =
+`authenticated`/`anon` ; les fonctions SECURITY DEFINER passent) :
+`lists.owner_id` (un membre pouvait se l'attribuer puis supprimer la liste)
+et `invites.list_id`/`to_email`/`from_user` (une invitation réécrite vers
+une autre liste permettait de la rejoindre via `accept_invite`). Les
+écritures de la file de sync renvoient la ligne complète avec le même
+`owner_id` : seule une vraie modification est refusée.
 
 ## Imports externes (`mago://import`)
 
