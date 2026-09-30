@@ -225,24 +225,34 @@ describe('planFlushEntry', () => {
   });
 });
 
+const RLS = { code: '42501', message: 'new row violates row-level security policy for table "items"' };
+const FK = { code: '23503', message: 'insert or update on table "items" violates foreign key constraint "items_list_id_fkey"' };
+
 describe('échecs définitifs (attempts)', () => {
-  it('ne compte que les erreurs Postgres permanentes (FK, doublon, RLS)', () => {
-    expect(isPermanentSyncError('23503')).toBe(true);
-    expect(isPermanentSyncError('23505')).toBe(true);
-    expect(isPermanentSyncError('42501')).toBe(true);
+  it('ne compte que les erreurs Postgres permanentes (FK, doublon, policy RLS)', () => {
+    expect(isPermanentSyncError(FK)).toBe(true);
+    expect(isPermanentSyncError({ code: '23505', message: 'duplicate key value violates unique constraint' })).toBe(true);
+    expect(isPermanentSyncError(RLS)).toBe(true);
+    expect(
+      isPermanentSyncError({ code: '42501', message: 'new row violates row-level security policy (USING expression) for table "lists"' }),
+    ).toBe(true);
+    // GRANT manquant (corrigé par une migration) : pas un refus de policy.
+    expect(isPermanentSyncError({ code: '42501', message: 'permission denied for table items' })).toBe(false);
     // Réseau (pas de code), schéma pas encore migré, JWT expiré, serveur : jamais.
     for (const code of [undefined, null, '', 'PGRST204', 'PGRST301', '42703', '40001', 'XX000', '57014']) {
-      expect(isPermanentSyncError(code)).toBe(false);
+      expect(isPermanentSyncError({ code, message: 'x' })).toBe(false);
     }
+    expect(isPermanentSyncError(new TypeError('Failed to fetch'))).toBe(false);
+    expect(isPermanentSyncError(null)).toBe(false);
   });
 
   it('ne compte pas l’échec d’un article dont la liste attend encore son envoi', () => {
     const item = entry('i1', 'v1', {}, { list_id: 'L' });
     const list: QueueEntry = { ...entry('L', 'v0'), table: 'lists' };
-    expect(countsAsFailedAttempt(item, '42501', [list, item])).toBe(false);
-    expect(countsAsFailedAttempt(item, '23503', [list, item])).toBe(false);
-    expect(countsAsFailedAttempt(item, '23503', [item])).toBe(true);
-    expect(countsAsFailedAttempt(list, '42501', [list, item])).toBe(true);
+    expect(countsAsFailedAttempt(item, RLS, [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, FK, [list, item])).toBe(false);
+    expect(countsAsFailedAttempt(item, FK, [item])).toBe(true);
+    expect(countsAsFailedAttempt(list, RLS, [list, item])).toBe(true);
   });
 
   it(`abandonne l’entrée au ${MAX_SYNC_ATTEMPTS}e échec définitif de la même version`, async () => {
@@ -250,12 +260,12 @@ describe('échecs définitifs (attempts)', () => {
     await enqueueEntry(entry('b', 'v2'));
     const sent = (await readEntry('items', 'a'))!;
 
-    let result = await recordFailedAttempt(sent, 'v1', '42501');
+    let result = await recordFailedAttempt(sent, 'v1', RLS);
     expect(result).toMatchObject({ counted: true, dropped: false });
     expect((await readEntry('items', 'a'))?.attempts).toBe(1);
-    result = await recordFailedAttempt(sent, 'v1', '23503');
+    result = await recordFailedAttempt(sent, 'v1', FK);
     expect((await readEntry('items', 'a'))?.attempts).toBe(2);
-    result = await recordFailedAttempt(sent, 'v1', '42501');
+    result = await recordFailedAttempt(sent, 'v1', RLS);
     expect(result).toMatchObject({ counted: true, dropped: true });
     expect(result.queue.map((q) => q.row.id)).toEqual(['b']);
     expect(await readQueue()).toEqual(result.queue);
@@ -265,8 +275,8 @@ describe('échecs définitifs (attempts)', () => {
     await enqueueEntry(entry('a', 'v1'));
     const sent = (await readEntry('items', 'a'))!;
     for (let i = 0; i < 5; i++) {
-      expect((await recordFailedAttempt(sent, 'v1', '')).counted).toBe(false);
-      expect((await recordFailedAttempt(sent, 'v1', undefined)).counted).toBe(false);
+      expect((await recordFailedAttempt(sent, 'v1', { code: '', message: 'TypeError: Failed to fetch' })).counted).toBe(false);
+      expect((await recordFailedAttempt(sent, 'v1', new TypeError('Failed to fetch'))).counted).toBe(false);
     }
     expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
   });
@@ -274,11 +284,11 @@ describe('échecs définitifs (attempts)', () => {
   it('une nouvelle version repart de zéro et n’est pas touchée par l’échec de l’ancienne', async () => {
     await enqueueEntry(entry('a', 'v1'));
     const sent = (await readEntry('items', 'a'))!;
-    await recordFailedAttempt(sent, 'v1', '42501');
-    await recordFailedAttempt(sent, 'v1', '42501');
+    await recordFailedAttempt(sent, 'v1', RLS);
+    await recordFailedAttempt(sent, 'v1', RLS);
     // Modifiée pendant l'envoi : v2 remplace v1 (sans attempts).
     await enqueueEntry(entry('a', 'v2'));
-    const result = await recordFailedAttempt(sent, 'v1', '42501');
+    const result = await recordFailedAttempt(sent, 'v1', RLS);
     expect(result).toMatchObject({ counted: false, dropped: false });
     expect(await readEntry('items', 'a')).toMatchObject({ version: 'v2' });
     expect((await readEntry('items', 'a'))?.attempts).toBeUndefined();
@@ -292,7 +302,7 @@ describe('échecs définitifs (attempts)', () => {
       patch: true,
     };
     store.set(QUEUE_KEY, JSON.stringify([fromWidget]));
-    const result = await recordFailedAttempt(fromWidget, entryVersion(fromWidget), '42501');
+    const result = await recordFailedAttempt(fromWidget, entryVersion(fromWidget), RLS);
     expect(result).toMatchObject({ counted: true, dropped: false });
     expect((await readEntry('items', 'w'))?.attempts).toBe(1);
   });

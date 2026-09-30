@@ -179,8 +179,10 @@ dédié (un script par concern, pas un fourre-tout).
     abandonnée (journalisée via `logSyncError`) ; sinon `update()` des
     seules colonnes du patch.
   - `attempts` (optionnel, absent = 0) : échecs **définitifs** de cette
-    version — code Postgres de classe 23 (FK 23503, doublon 23505…) ou RLS
-    42501, voir `isPermanentSyncError`. Au 3e (`MAX_SYNC_ATTEMPTS`),
+    version — code Postgres de classe 23 (FK 23503, doublon 23505…) ou refus
+    d'une policy RLS (42501 « row-level security » ; pas un 42501
+    « permission denied » dû à un GRANT manquant), voir
+    `isPermanentSyncError`. Au 3e (`MAX_SYNC_ATTEMPTS`),
     l'entrée est retirée et journalisée (« Abandonnée après 3 échecs »).
     Une erreur réseau, serveur ou de schéma (PGRST…) ne compte jamais, ni
     l'échec d'un article dont la liste attend encore son envoi. Remis à

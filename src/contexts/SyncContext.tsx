@@ -42,14 +42,6 @@ function describeError(err: unknown): string {
   return String(err);
 }
 
-function errorCode(err: unknown): string | undefined {
-  if (err && typeof err === 'object' && 'code' in err) {
-    const { code } = err as { code?: unknown };
-    return typeof code === 'string' ? code : undefined;
-  }
-  return undefined;
-}
-
 function rowKey(table: QueueTable, id: string) {
   return `${table}:${id}`;
 }
@@ -269,7 +261,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             console.error('Sync flush failed for entry', entry, err);
             let dropped = false;
             try {
-              const result = await recordFailedAttempt(entry, version, errorCode(err));
+              const result = await recordFailedAttempt(entry, version, err);
               dropped = result.dropped;
               setQueue(result.queue);
             } catch {
